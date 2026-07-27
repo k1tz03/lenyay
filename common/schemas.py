@@ -72,6 +72,7 @@ class ContributorStat(BaseModel):
     device_id: str
     device_name: str
     credits: int
+    last_seen: str = ""  # ISO 8601 — « dernière activité » sur le dashboard
 
 
 class Stats(BaseModel):
@@ -79,4 +80,6 @@ class Stats(BaseModel):
     total_rollouts: int
     accepted_rollouts: int
     acceptance_rate: float
+    total_credits: int
+    tasks_in_catalog: int
     top_contributors: list[ContributorStat]

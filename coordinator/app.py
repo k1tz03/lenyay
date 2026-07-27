@@ -1,11 +1,10 @@
-"""Coordinateur Essaim — API FastAPI + mini-dashboard HTML.
+"""Coordinateur Lenyay — API FastAPI + mini-dashboard HTML.
 
 Lancement :  python -m coordinator.app
-(ESSAIM_HOST / ESSAIM_PORT pris en compte ; avec la CLI uvicorn, passer
+(LENYAY_HOST / LENYAY_PORT pris en compte ; avec la CLI uvicorn, passer
 soi-même --host/--port.)
 """
 
-import html
 import json
 import logging
 import threading
@@ -29,7 +28,7 @@ from common.schemas import (
 from coordinator import db, tasks
 from coordinator.verifier import verify
 
-logger = logging.getLogger("essaim.coordinator")
+logger = logging.getLogger("lenyay.coordinator")
 _archive_lock = threading.Lock()
 
 
@@ -43,7 +42,7 @@ async def lifespan(_: FastAPI):
     yield
 
 
-app = FastAPI(title="Essaim — coordinateur", lifespan=lifespan)
+app = FastAPI(title="Lenyay — coordinateur", lifespan=lifespan)
 
 
 def require_device(x_api_key: str | None = Header(default=None, alias="X-API-Key")):
@@ -132,67 +131,174 @@ def submit_results(payload: ResultsPayload, device=Depends(require_device)):
 
 @app.get("/stats", response_model=Stats)
 def get_stats():
-    return Stats(**db.stats())
+    return Stats(**db.stats(), tasks_in_catalog=tasks.count())
 
 
 # --- Dashboard -------------------------------------------------------------
+# Page statique unique : les compteurs sont alimentés en direct par un fetch
+# de /stats toutes les 4 s (pas de rechargement complet, pas de framework).
+# Les noms d'appareils sont injectés via textContent → pas de XSS possible.
 
 _PAGE = """<!doctype html>
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="refresh" content="5">
-<title>Essaim — coordinateur</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lenyay — coordinateur</title>
 <style>
-  body {{ font-family: system-ui, sans-serif; margin: 2rem auto; max-width: 640px;
-         color: #1a1a1a; background: #fafaf7; }}
-  h1 {{ font-size: 1.4rem; }} h1 small {{ color: #999; font-weight: normal; }}
-  .cards {{ display: flex; gap: 1rem; flex-wrap: wrap; margin: 1.5rem 0; }}
-  .card {{ flex: 1 1 120px; background: white; border: 1px solid #e5e2da;
-           border-radius: 8px; padding: 1rem; }}
-  .card b {{ display: block; font-size: 1.6rem; }}
-  .card span {{ color: #777; font-size: .85rem; }}
-  table {{ width: 100%; border-collapse: collapse; background: white;
-           border: 1px solid #e5e2da; border-radius: 8px; }}
-  th, td {{ text-align: left; padding: .5rem .75rem; border-top: 1px solid #eee; }}
-  th {{ border-top: none; color: #777; font-size: .85rem; }}
-  footer {{ color: #aaa; font-size: .8rem; margin-top: 1.5rem; }}
+  :root{
+    --bg:#0f1413; --panel:#161d1b; --border:#243030;
+    --text:#e6edea; --muted:#87999a;
+    --accent:#72b5a3; --accent-soft:rgba(114,181,163,.18); --bad:#c4726f;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+       font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+       -webkit-font-smoothing:antialiased}
+  .wrap{max-width:760px;margin:0 auto;padding:2rem 1.25rem 3rem}
+  header{display:flex;align-items:baseline;gap:.75rem;flex-wrap:wrap;
+         margin-bottom:1.75rem}
+  h1{font-size:1.5rem;margin:0;letter-spacing:.02em}
+  h1 small{color:var(--muted);font-weight:400;font-size:.95rem}
+  #live{margin-left:auto;display:flex;align-items:center;gap:.45rem;
+        color:var(--muted);font-size:.8rem}
+  #live .dot{width:.55rem;height:.55rem;border-radius:50%;
+             background:var(--accent);animation:pulse 2.5s infinite}
+  #live.off .dot{background:var(--bad);animation:none}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 var(--accent-soft)}
+                   70%{box-shadow:0 0 0 .5rem transparent}
+                   100%{box-shadow:0 0 0 0 transparent}}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+         gap:.75rem}
+  .card{background:var(--panel);border:1px solid var(--border);
+        border-radius:10px;padding:1rem 1.1rem}
+  .card b{display:block;font-size:1.9rem;font-weight:650;
+          font-variant-numeric:tabular-nums;color:var(--accent)}
+  .card span{color:var(--muted);font-size:.82rem}
+  section h2{font-size:.9rem;color:var(--muted);font-weight:600;
+             margin:2rem 0 .75rem;text-transform:uppercase;letter-spacing:.08em}
+  table{width:100%;border-collapse:collapse;background:var(--panel);
+        border:1px solid var(--border);border-radius:10px;overflow:hidden}
+  th,td{text-align:left;padding:.65rem .9rem;border-top:1px solid var(--border);
+        font-size:.92rem}
+  thead th{border-top:none;color:var(--muted);font-size:.76rem;
+           text-transform:uppercase;letter-spacing:.06em}
+  td.num{text-align:right;font-variant-numeric:tabular-nums;
+         color:var(--accent);font-weight:600}
+  td .id{color:var(--muted);font-family:ui-monospace,Consolas,monospace;
+         font-size:.78rem}
+  td .when{color:var(--muted);font-size:.85rem}
+  .on::before{content:"";display:inline-block;width:.45rem;height:.45rem;
+              border-radius:50%;background:var(--accent);margin-right:.45rem}
+  footer{color:var(--muted);font-size:.78rem;margin-top:1.5rem}
+  @media (max-width:480px){
+    .wrap{padding:1.25rem .9rem 2rem}
+    .card b{font-size:1.5rem}
+    th:first-child,td:first-child{display:none}
+  }
 </style>
 </head>
 <body>
-<h1>🐝 Essaim <small>— coordinateur (phase 0)</small></h1>
+<div class="wrap">
+<header>
+  <h1>🐝 Lenyay <small>— coordinateur · phase 0</small></h1>
+  <div id="live"><span class="dot"></span><span id="live-label">connexion…</span></div>
+</header>
 <div class="cards">
-  <div class="card"><b>{devices}</b><span>appareils vus</span></div>
-  <div class="card"><b>{total}</b><span>rollouts totaux</span></div>
-  <div class="card"><b>{accepted}</b><span>rollouts acceptés</span></div>
-  <div class="card"><b>{rate:.0%}</b><span>taux d'acceptation</span></div>
+  <div class="card"><b id="stat-rollouts">–</b><span>rollouts vérifiés</span></div>
+  <div class="card"><b id="stat-rate">–</b><span>taux d'acceptation</span></div>
+  <div class="card"><b id="stat-credits">–</b><span>crédits distribués</span></div>
+  <div class="card"><b id="stat-devices">–</b><span>appareils vus</span></div>
 </div>
+<section>
+<h2>Appareils</h2>
 <table>
-  <tr><th>#</th><th>Appareil</th><th>Crédits</th></tr>
-  {rows}
+  <thead><tr><th>#</th><th>Appareil</th><th>Dernière activité</th><th>Crédits</th></tr></thead>
+  <tbody id="devices"><tr><td colspan="4">Chargement…</td></tr></tbody>
 </table>
-<footer>{task_count} tâches GSM8K au catalogue — rafraîchissement auto toutes les 5 s</footer>
+</section>
+<footer id="footer">–</footer>
+</div>
+<script>
+const $ = id => document.getElementById(id);
+const fmt = n => n.toLocaleString("fr-FR");
+
+function ago(iso) {
+  const t = Date.parse(iso);
+  if (!iso || isNaN(t)) return "—";
+  const s = Math.max(0, (Date.now() - t) / 1000);
+  if (s < 10) return "à l'instant";
+  if (s < 60) return "il y a " + Math.round(s) + " s";
+  if (s < 3600) return "il y a " + Math.round(s / 60) + " min";
+  if (s < 86400) return "il y a " + Math.round(s / 3600) + " h";
+  return "il y a " + Math.round(s / 86400) + " j";
+}
+
+function render(s) {
+  $("stat-rollouts").textContent = fmt(s.total_rollouts);
+  $("stat-rate").textContent =
+    (100 * s.acceptance_rate).toFixed(1).replace(".", ",") + " %";
+  $("stat-credits").textContent = fmt(s.total_credits);
+  $("stat-devices").textContent = fmt(s.devices_seen);
+  const tbody = $("devices");
+  tbody.replaceChildren();
+  if (!s.top_contributors.length) {
+    const tr = document.createElement("tr");
+    const td = document.createElement("td");
+    td.colSpan = 4;
+    td.textContent = "Aucun contributeur pour l'instant";
+    tr.append(td); tbody.append(tr);
+  }
+  s.top_contributors.forEach((c, i) => {
+    const tr = document.createElement("tr");
+    const rank = document.createElement("td");
+    rank.textContent = i + 1;
+    const name = document.createElement("td");
+    const label = document.createElement("span");
+    label.textContent = c.device_name;
+    const idTag = document.createElement("span");
+    idTag.className = "id";
+    idTag.textContent = " " + c.device_id.slice(0, 8);
+    name.append(label, idTag);
+    const when = document.createElement("td");
+    const active = (Date.now() - Date.parse(c.last_seen)) / 1000 < 120;
+    if (active) when.className = "on";
+    const w = document.createElement("span");
+    w.className = "when";
+    w.textContent = ago(c.last_seen);
+    when.append(w);
+    const credits = document.createElement("td");
+    credits.className = "num";
+    credits.textContent = fmt(c.credits);
+    tr.append(rank, name, when, credits);
+    tbody.append(tr);
+  });
+  $("footer").textContent = fmt(s.tasks_in_catalog) +
+    " tâches GSM8K au catalogue — mise à jour automatique toutes les 4 s";
+}
+
+async function tick() {
+  try {
+    const r = await fetch("/stats", { cache: "no-store" });
+    if (!r.ok) throw new Error(r.status);
+    render(await r.json());
+    $("live").classList.remove("off");
+    $("live-label").textContent = "en direct";
+  } catch (e) {
+    $("live").classList.add("off");
+    $("live-label").textContent = "hors ligne";
+  }
+}
+tick();
+setInterval(tick, 4000);
+</script>
 </body>
 </html>"""
 
 
 @app.get("/", response_class=HTMLResponse)
 def dashboard():
-    s = db.stats()
-    rows = "".join(
-        f"<tr><td>{i + 1}</td><td>{html.escape(c['device_name'])} "
-        f"<small style='color:#bbb'>{c['device_id'][:8]}</small></td>"
-        f"<td>{c['credits']}</td></tr>"
-        for i, c in enumerate(s["top_contributors"])
-    ) or "<tr><td colspan=3>Aucun contributeur pour l'instant</td></tr>"
-    return _PAGE.format(
-        devices=s["devices_seen"],
-        total=s["total_rollouts"],
-        accepted=s["accepted_rollouts"],
-        rate=s["acceptance_rate"],
-        rows=rows,
-        task_count=tasks.count(),
-    )
+    return _PAGE
 
 
 if __name__ == "__main__":

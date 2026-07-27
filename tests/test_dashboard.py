@@ -1,0 +1,74 @@
+"""Tests du dashboard et des stats enrichies — TDD, base temporaire isolée."""
+
+import importlib
+import json
+
+import pytest
+
+import common.config as config_mod
+
+
+@pytest.fixture
+def client_and_answers(tmp_path, monkeypatch):
+    """TestClient du coordinateur sur base/catalogue/archive temporaires."""
+    answers = {"dash-00": "7", "dash-01": "9"}
+    tasks_file = tmp_path / "tasks.jsonl"
+    tasks_file.write_text(
+        "".join(
+            json.dumps({"task_id": tid, "prompt": f"p {tid}", "expected_answer": exp})
+            + "\n"
+            for tid, exp in answers.items()
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("LENYAY_DB", str(tmp_path / "db.sqlite"))
+    monkeypatch.setenv("LENYAY_ACCEPTED_DIR", str(tmp_path / "accepted"))
+    monkeypatch.setenv("LENYAY_TASKS", str(tasks_file))
+    importlib.reload(config_mod)
+
+    from fastapi.testclient import TestClient
+
+    from coordinator.app import app
+
+    with TestClient(app) as client:
+        yield client, answers
+    importlib.reload(config_mod)
+
+
+class TestStatsEnrichies:
+    def test_credits_totaux_catalogue_et_derniere_activite(self, client_and_answers):
+        client, answers = client_and_answers
+        creds = client.post("/devices/register", json={"device_name": "poste-1"}).json()
+        headers = {"X-API-Key": creds["api_key"]}
+        work = client.get("/work", params={"n": 1}, headers=headers).json()
+        task_id = work["tasks"][0]["task_id"]
+        client.post(
+            "/results",
+            json={"results": [{"task_id": task_id,
+                               "trace": f"#### {answers[task_id]}", "attempt": 1}]},
+            headers=headers,
+        )
+
+        stats = client.get("/stats").json()
+        assert stats["total_credits"] == 1
+        assert stats["tasks_in_catalog"] == 2
+        top = stats["top_contributors"][0]
+        assert top["device_name"] == "poste-1"
+        assert top["last_seen"]  # horodatage ISO non vide → « dernière activité »
+
+
+class TestDashboard:
+    def test_page_lenyay_live_sans_rechargement_complet(self, client_and_answers):
+        client, _ = client_and_answers
+        response = client.get("/")
+        assert response.status_code == 200
+        html = response.text
+        assert "Lenyay" in html
+        assert "Essaim" not in html
+        # Compteur live : fetch de /stats en JS, plus de meta-refresh plein écran.
+        assert "fetch(" in html and "/stats" in html
+        assert 'http-equiv="refresh"' not in html
+        # Les quatre compteurs demandés et la colonne d'activité sont présents.
+        for marker in ("rollouts vérifiés", "taux d'acceptation",
+                       "crédits", "appareils", "Dernière activité"):
+            assert marker in html, marker
