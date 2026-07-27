@@ -14,7 +14,9 @@ from common.schemas import Task
 
 log = logging.getLogger("essaim.worker")
 
-_SYSTEM_PROMPT = (
+# Public : scripts/eval.py réutilise ce prompt pour évaluer dans les mêmes
+# conditions exactes que la production.
+SYSTEM_PROMPT = (
     "You are a careful math tutor. Solve the problem step by step. "
     "End with the final numeric result on its own line, "
     "in the exact format: #### <number>"
@@ -75,7 +77,7 @@ class LlamaGenerator:
     def generate(self, task: Task) -> str:
         output = self._llm.create_chat_completion(
             messages=[
-                {"role": "system", "content": _SYSTEM_PROMPT},
+                {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": task.prompt},
             ],
             temperature=config.TEMPERATURE,
