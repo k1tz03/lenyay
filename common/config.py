@@ -12,6 +12,8 @@ def _env(name: str, default: str) -> str:
 
 # --- Réseau ----------------------------------------------------------------
 COORDINATOR_URL = _env("ESSAIM_COORDINATOR_URL", "http://127.0.0.1:8000")
+HOST = _env("ESSAIM_HOST", "127.0.0.1")
+PORT = int(_env("ESSAIM_PORT", "8000"))
 
 # --- Chemins ---------------------------------------------------------------
 DB_PATH = Path(_env("ESSAIM_DB", str(REPO_ROOT / "data" / "essaim.db")))
