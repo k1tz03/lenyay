@@ -55,7 +55,20 @@ def _connect():
         conn.close()
 
 
+def _adopt_legacy_db() -> None:
+    """Premier démarrage sous le nom Lenyay : adopte l'ancienne base Essaim
+    (essaim.db, même dossier) au lieu de repartir de zéro. Ne s'exécute qu'au
+    démarrage du coordinateur — jamais pendant qu'un autre tourne dessus."""
+    if config.DB_PATH.exists():
+        return
+    legacy = config.DB_PATH.with_name("essaim.db")
+    if legacy.exists():
+        legacy.rename(config.DB_PATH)
+
+
 def init_db() -> None:
+    config.DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    _adopt_legacy_db()
     with _connect() as conn:
         conn.executescript(_SCHEMA)
 
@@ -132,8 +145,11 @@ def stats(top_n: int = 10) -> dict:
         accepted = conn.execute(
             "SELECT COUNT(*) AS n FROM rollouts WHERE accepted = 1"
         ).fetchone()["n"]
+        total_credits = conn.execute(
+            "SELECT COALESCE(SUM(credits), 0) AS n FROM credits"
+        ).fetchone()["n"]
         top = conn.execute(
-            "SELECT c.device_id, d.device_name, c.credits"
+            "SELECT c.device_id, d.device_name, c.credits, d.last_seen"
             " FROM credits c JOIN devices d ON d.device_id = c.device_id"
             " ORDER BY c.credits DESC, d.device_name LIMIT ?",
             (top_n,),
@@ -143,5 +159,6 @@ def stats(top_n: int = 10) -> dict:
         "total_rollouts": total,
         "accepted_rollouts": accepted,
         "acceptance_rate": (accepted / total) if total else 0.0,
+        "total_credits": total_credits,
         "top_contributors": [dict(r) for r in top],
     }

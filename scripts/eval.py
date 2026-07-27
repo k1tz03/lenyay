@@ -29,7 +29,7 @@ sys.path.insert(0, str(REPO_ROOT))
 from coordinator.verifier import verify  # noqa: E402  — LE vérificateur du coordinateur
 from worker.inference import SYSTEM_PROMPT  # noqa: E402  — LE prompt de production
 
-log = logging.getLogger("essaim.eval")
+log = logging.getLogger("lenyay.eval")
 
 # Config d'éval FIGÉE : identique pour toutes les évals à venir, sinon les
 # comparaisons v0.1 vs v0.2 ne veulent rien dire.

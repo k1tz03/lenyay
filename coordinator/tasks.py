@@ -13,7 +13,7 @@ from pydantic import ValidationError
 from common import config
 from common.schemas import TaskWithAnswer
 
-logger = logging.getLogger("essaim.coordinator")
+logger = logging.getLogger("lenyay.coordinator")
 
 _tasks: dict[str, TaskWithAnswer] = {}
 

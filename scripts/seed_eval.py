@@ -1,6 +1,6 @@
 """Fige UNE FOIS le jeu d'évaluation : 200 problèmes du split TEST de GSM8K.
 
-Le split test n'alimente JAMAIS l'essaim (data/tasks.jsonl vient du train) :
+Le split test n'alimente JAMAIS l'essaim Lenyay (data/tasks.jsonl vient du train) :
 c'est le jeu tenu à l'écart qui mesurera v0.1 vs v0.2. Tirage à seed fixe,
 puis contrôle anti-contamination (aucun énoncé commun avec le train) affiché
 avant l'écriture. Refuse d'écraser un jeu déjà figé (--force pour passer outre).

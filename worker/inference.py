@@ -1,8 +1,8 @@
 """Génération par vrai modèle : GGUF 1-3B via llama-cpp-python.
 
 Le modèle est téléchargé automatiquement au premier lancement depuis
-Hugging Face (repo et quantisation configurables via ESSAIM_MODEL_REPO /
-ESSAIM_MODEL_PATTERN). Par défaut : Qwen2.5-1.5B-Instruct q4_k_m (~1 Go,
+Hugging Face (repo et quantisation configurables via LENYAY_MODEL_REPO /
+LENYAY_MODEL_PATTERN). Par défaut : Qwen2.5-1.5B-Instruct q4_k_m (~1 Go,
 licence Apache-2.0).
 """
 
@@ -12,7 +12,7 @@ from pathlib import Path
 from common import config
 from common.schemas import Task
 
-log = logging.getLogger("essaim.worker")
+log = logging.getLogger("lenyay.worker")
 
 # Public : scripts/eval.py réutilise ce prompt pour évaluer dans les mêmes
 # conditions exactes que la production.

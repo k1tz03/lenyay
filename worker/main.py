@@ -1,7 +1,7 @@
-"""Worker Essaim — boucle : demander du travail → générer → soumettre → recommencer.
+"""Worker Lenyay — boucle : demander du travail → générer → soumettre → recommencer.
 
 Lancement :  python -m worker.main [--mock]
-Mode mock :  ESSAIM_MOCK=1 (ou --mock) — traces simulées, ~30 % correctes.
+Mode mock :  LENYAY_MOCK=1 (ou --mock) — traces simulées, ~30 % correctes.
 Arrêt     :  Ctrl+C (résumé de session affiché).
 """
 
@@ -15,21 +15,29 @@ import time
 
 import httpx
 
-log = logging.getLogger("essaim.worker")
+log = logging.getLogger("lenyay.worker")
 
 
 def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Worker Essaim")
+    parser = argparse.ArgumentParser(description="Worker Lenyay")
     parser.add_argument(
         "--mock",
         action="store_true",
-        help="équivalent de ESSAIM_MOCK=1 (pratique sous PowerShell)",
+        help="équivalent de LENYAY_MOCK=1 (pratique sous PowerShell)",
     )
     return parser.parse_args()
 
 
 def _ensure_registered(client, device_file) -> dict:
-    """Charge l'identité persistée, ou s'enregistre au premier lancement."""
+    """Charge l'identité persistée, ou s'enregistre au premier lancement.
+
+    Adopte l'ancien fichier .essaim_device.json s'il existe (renommage Lenyay).
+    """
+    if not device_file.exists():
+        legacy = device_file.with_name(".essaim_device.json")
+        if legacy.exists():
+            legacy.rename(device_file)
+            log.info("Identité migrée : %s → %s", legacy.name, device_file.name)
     if device_file.exists():
         identity = json.loads(device_file.read_text(encoding="utf-8"))
         client.set_api_key(identity["api_key"])
@@ -82,9 +90,9 @@ def _ensure_registered_with_retry(client, device_file) -> dict:
 def run() -> None:
     args = _parse_args()
     if args.mock:
-        os.environ["ESSAIM_MOCK"] = "1"
+        os.environ["LENYAY_MOCK"] = "1"
 
-    # Import après le réglage éventuel de ESSAIM_MOCK par --mock.
+    # Import après le réglage éventuel de LENYAY_MOCK par --mock.
     from common import config
     from common.schemas import ResultSubmission
     from worker.client import CoordinatorClient
@@ -145,7 +153,7 @@ def run() -> None:
 
                 tasks_processed += len(batch.tasks)
                 if config.MAX_TASKS and tasks_processed >= config.MAX_TASKS:
-                    log.info("Limite ESSAIM_MAX_TASKS atteinte (%d tâches)", tasks_processed)
+                    log.info("Limite LENYAY_MAX_TASKS atteinte (%d tâches)", tasks_processed)
                     break
 
             except httpx.HTTPStatusError as exc:

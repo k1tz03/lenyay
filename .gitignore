@@ -4,10 +4,15 @@ __pycache__/
 .venv/
 .pytest_cache/
 
-# Essaim — état local et données générées (jamais commitées)
-data/essaim.db*
+# Lenyay — état local et données générées (jamais commitées)
+data/lenyay.db*
+.lenyay_device.json
 data/accepted/
 models/
+results/*.partial.jsonl
+
+# Anciens noms (Essaim) — adoptés automatiquement au prochain redémarrage
+data/essaim.db*
 .essaim_device.json
 
 # Divers

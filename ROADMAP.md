@@ -2,6 +2,11 @@
 
 **Nom de code : Leny's life**
 
+> **Note (2026-07-27)** : le projet s'appelle désormais **Lenyay** (prononcé
+> « leny-ay »). Ce document est conservé tel quel comme référence historique ;
+> les variables d'environnement sont devenues `LENYAY_*` (les `ESSAIM_*`
+> restent lues avec un avertissement de dépréciation).
+
 ## La vision en trois lignes
 
 Un réseau coopératif où les PC et téléphones des membres améliorent un modèle IA

@@ -1,4 +1,7 @@
-# Essaim — nom de code « Leny's life »
+# Lenyay
+
+**Prononciation officielle : « leny-ay »** — anciennement *Essaim* (nom de
+code « Leny's life »).
 
 Réseau de calcul coopératif : les machines des membres génèrent la nuit des
 **rollouts** (résolutions de problèmes GSM8K par un petit LLM local), un
@@ -19,7 +22,7 @@ Voir [ROADMAP.md](ROADMAP.md) pour la vision complète et les décisions actées
 └───────┬─────────┘                                 └──────┬───────┬──────┘
         │                                                  │       │
         ▼                                                  ▼       ▼
-  models/*.gguf                                    data/essaim.db  data/accepted/*.jsonl
+  models/*.gguf                                    data/lenyay.db  data/accepted/*.jsonl
   (téléchargé au                                   (journal +      (traces correctes =
    1er lancement)                                   crédits)        futur dataset)
 ```
@@ -73,31 +76,38 @@ le worker proprement avec un résumé de session. Les traces acceptées
 s'accumulent dans `data/accepted/accepted-<date>.jsonl`.
 
 Au premier lancement, le worker s'enregistre et persiste son identité
-(device_id + clé API) dans `.essaim_device.json` à la racine (ignoré par git).
+(device_id + clé API) dans `.lenyay_device.json` à la racine (ignoré par git).
 Pour repartir avec un appareil neuf, supprime ce fichier. La boucle survit aux
 redémarrages du coordinateur : erreurs réseau et HTTP → pause de 5 s et
 nouvel essai, jamais de crash.
 
+**Migration depuis Essaim** : au premier démarrage sous le nom Lenyay, la base
+`data/essaim.db` et l'identité `.essaim_device.json` existantes sont adoptées
+automatiquement (renommées) — crédits et historique conservés.
+
 ## Configuration (variables d'environnement)
+
+Les anciennes variables `ESSAIM_*` restent lues si la variante `LENYAY_*`
+n'est pas définie, avec un avertissement de dépréciation.
 
 | Variable | Défaut | Rôle |
 |---|---|---|
-| `ESSAIM_MOCK` | `0` | `1` = worker en mode mock (équivalent : `--mock`) |
-| `ESSAIM_COORDINATOR_URL` | `http://127.0.0.1:8000` | URL du coordinateur vue par le worker |
-| `ESSAIM_HOST` / `ESSAIM_PORT` | `127.0.0.1` / `8000` | Écoute du coordinateur (`python -m coordinator.app`) |
-| `ESSAIM_BATCH_SIZE` | `4` | Tâches par lot demandé (borné à 1-32) |
-| `ESSAIM_ATTEMPTS` | `2` | Tentatives max par problème (1 = pas de retry) |
-| `ESSAIM_MAX_TASKS` | `0` | S'arrêter après N tâches (0 = boucle infinie) |
-| `ESSAIM_TEMPERATURE` | `0.8` | Température d'échantillonnage |
-| `ESSAIM_MAX_TOKENS` | `640` | Tokens max générés par réponse (mode réel) |
-| `ESSAIM_MODEL_REPO` | `Qwen/Qwen2.5-1.5B-Instruct-GGUF` | Repo Hugging Face du modèle |
-| `ESSAIM_MODEL_PATTERN` | `q4_k_m` | Motif du fichier GGUF à choisir |
-| `ESSAIM_MOCK_ACCURACY` | `0.3` | Taux de bonnes réponses du mock |
-| `ESSAIM_DB` | `data/essaim.db` | Base SQLite du coordinateur |
-| `ESSAIM_TASKS` | `data/tasks.jsonl` | Catalogue de tâches figé |
-| `ESSAIM_ACCEPTED_DIR` | `data/accepted` | Archive des traces acceptées |
-| `ESSAIM_DEVICE_FILE` | `.essaim_device.json` | Identité persistée du worker |
-| `ESSAIM_MODELS_DIR` | `models` | Dossier des GGUF téléchargés |
+| `LENYAY_MOCK` | `0` | `1` = worker en mode mock (équivalent : `--mock`) |
+| `LENYAY_COORDINATOR_URL` | `http://127.0.0.1:8000` | URL du coordinateur vue par le worker |
+| `LENYAY_HOST` / `LENYAY_PORT` | `127.0.0.1` / `8000` | Écoute du coordinateur (`python -m coordinator.app`) |
+| `LENYAY_BATCH_SIZE` | `4` | Tâches par lot demandé (borné à 1-32) |
+| `LENYAY_ATTEMPTS` | `2` | Tentatives max par problème (1 = pas de retry) |
+| `LENYAY_MAX_TASKS` | `0` | S'arrêter après N tâches (0 = boucle infinie) |
+| `LENYAY_TEMPERATURE` | `0.8` | Température d'échantillonnage |
+| `LENYAY_MAX_TOKENS` | `640` | Tokens max générés par réponse (mode réel) |
+| `LENYAY_MODEL_REPO` | `Qwen/Qwen2.5-1.5B-Instruct-GGUF` | Repo Hugging Face du modèle |
+| `LENYAY_MODEL_PATTERN` | `q4_k_m` | Motif du fichier GGUF à choisir |
+| `LENYAY_MOCK_ACCURACY` | `0.3` | Taux de bonnes réponses du mock |
+| `LENYAY_DB` | `data/lenyay.db` | Base SQLite du coordinateur |
+| `LENYAY_TASKS` | `data/tasks.jsonl` | Catalogue de tâches figé |
+| `LENYAY_ACCEPTED_DIR` | `data/accepted` | Archive des traces acceptées |
+| `LENYAY_DEVICE_FILE` | `.lenyay_device.json` | Identité persistée du worker |
+| `LENYAY_MODELS_DIR` | `models` | Dossier des GGUF téléchargés |
 
 ## Tests
 
@@ -105,11 +115,12 @@ nouvel essai, jamais de crash.
 .venv/Scripts/python.exe -m pytest
 ```
 
-44 tests couvrent le vérificateur (format `#### N`, virgules de milliers,
+53 tests couvrent le vérificateur (format `#### N`, virgules de milliers,
 virgule décimale européenne, point final, dollars, réponse noyée dans une
-phrase, décimaux, négatifs) et la suite d'évaluation (scoring, sorties,
-anti-contamination, comparaison) — le tout sur répertoires temporaires,
-sans toucher à l'essaim en marche.
+phrase, décimaux, négatifs), la suite d'évaluation (scoring, sorties,
+anti-contamination, comparaison) et la migration Lenyay (rétrocompatibilité
+`ESSAIM_*`, adoption de la base et de l'identité) — le tout sur répertoires
+temporaires, sans toucher à l'essaim en marche.
 
 ## Évaluation
 
@@ -164,14 +175,14 @@ re-seed (le worker encaisse la coupure et reprend tout seul).
 ```
 coordinator/          FastAPI : endpoints, vérificateur, SQLite, dashboard
 worker/               boucle du client : HTTP, génération (mock ou llama.cpp)
-common/               schémas Pydantic partagés + configuration ESSAIM_*
+common/               schémas Pydantic partagés + configuration LENYAY_*
 data/                 tasks.jsonl et eval_set.jsonl (figés, commités) ;
-                      essaim.db et accepted/ (générés)
+                      lenyay.db et accepted/ (générés)
 scripts/              seed_tasks.py, seed_eval.py, eval.py, compare_evals.py
-tests/                tests pytest (vérificateur + suite d'éval)
+tests/                tests pytest (vérificateur + éval + migration)
 results/              résultats d'éval (générés)
 models/               GGUF téléchargés (ignoré par git)
-.essaim_device.json   identité du worker, créée au 1er lancement (ignorée par git)
+.lenyay_device.json   identité du worker, créée au 1er lancement (ignorée par git)
 ```
 
 ## Hors périmètre de la phase 0
