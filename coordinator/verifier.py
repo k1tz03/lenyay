@@ -8,11 +8,15 @@ Deux régimes d'extraction :
 
 import re
 
-# Nombre à groupes de milliers, ou nombre simple, avec décimales optionnelles.
-# Après "####" on tolère aussi l'espace comme séparateur de milliers ("1 000") ;
-# en texte libre ce serait trop risqué (ça fusionnerait des nombres distincts).
-_NUM_AFTER_HASH = re.compile(r"-?\$?(?:\d{1,3}(?:[ ,]\d{3})+|\d+)(?:\.\d+)?")
+# Après "####" : on capture le jeton numérique complet (espaces de milliers en
+# groupes de 3 stricts, virgules libres pour désambiguïser ensuite, décimales).
+# En texte libre : seuls les groupements stricts sont tolérés — plus permissif,
+# on fusionnerait des nombres voisins ("12 pommes 5" → 125).
+_NUM_AFTER_HASH = re.compile(r"-?\$?(?:\d{1,3}(?: \d{3})+|\d[\d,]*)(?:\.\d+)?")
 _NUM_FREE_TEXT = re.compile(r"-?\$?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?")
+
+_THOUSANDS = re.compile(r"-?\d{1,3}(?:,\d{3})+(?:\.\d+)?")
+_DECIMAL_COMMA = re.compile(r"-?\d+,\d{1,2}")
 
 
 def _normalize(candidate: str) -> str | None:
@@ -27,12 +31,24 @@ def _normalize(candidate: str) -> str | None:
     return s or None
 
 
+def _disambiguate_commas(token: str) -> str:
+    """"1,000" → milliers ; "12,50" → virgule décimale ; "1,0000" → séparateurs retirés."""
+    if _THOUSANDS.fullmatch(token):
+        return token.replace(",", "")
+    if _DECIMAL_COMMA.fullmatch(token):
+        return token.replace(",", ".")
+    return token.replace(",", "")
+
+
 def extract_final_answer(trace: str) -> str | None:
     """Extrait la réponse numérique finale d'une trace, normalisée ("1,000" → "1000")."""
     if "####" in trace:
         tail = trace.rsplit("####", 1)[1]
         match = _NUM_AFTER_HASH.search(tail)
-        return _normalize(match.group()) if match else None
+        if match is None:
+            return None
+        token = match.group().replace("$", "").replace("%", "").replace(" ", "")
+        return _disambiguate_commas(token) or None
     matches = _NUM_FREE_TEXT.findall(trace)
     return _normalize(matches[-1]) if matches else None
 

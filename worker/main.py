@@ -66,6 +66,19 @@ def _submit_and_log(client, submissions, stats) -> list:
     return rejected
 
 
+def _ensure_registered_with_retry(client, device_file) -> dict:
+    """Comme _ensure_registered, mais survit à un coordinateur injoignable."""
+    while True:
+        try:
+            return _ensure_registered(client, device_file)
+        except httpx.RequestError as exc:
+            log.warning(
+                "Coordinateur injoignable (%s) — nouvel essai dans 5 s",
+                type(exc).__name__,
+            )
+            time.sleep(5)
+
+
 def run() -> None:
     args = _parse_args()
     if args.mock:
@@ -82,63 +95,76 @@ def run() -> None:
 
     client = CoordinatorClient(config.COORDINATOR_URL)
     generator = make_generator()
-    identity = _ensure_registered(client, config.DEVICE_FILE)
     mode = "MOCK" if config.MOCK_MODE else "RÉEL"
-    log.info("Worker prêt — mode %s, coordinateur %s", mode, config.COORDINATOR_URL)
 
     stats = {"generated": 0, "accepted": 0, "credits": 0}
     tasks_processed = 0
+    identity = {"device_name": "non enregistré"}
     try:
+        identity = _ensure_registered_with_retry(client, config.DEVICE_FILE)
+        log.info("Worker prêt — mode %s, coordinateur %s", mode, config.COORDINATOR_URL)
+
+        # La boucle doit survivre à la nuit : toute erreur réseau ou HTTP se
+        # solde par une pause puis un nouvel essai, jamais par un crash.
         while True:
             try:
                 batch = client.get_work(config.BATCH_SIZE)
-            except httpx.ConnectError:
-                log.warning("Coordinateur injoignable — nouvel essai dans 5 s")
-                time.sleep(5)
-                continue
+
+                if not batch.tasks:
+                    log.info("Aucune tâche disponible — pause de 10 s")
+                    time.sleep(10)
+                    continue
+
+                log.info("Lot de %d tâche(s) reçu", len(batch.tasks))
+
+                # Tentative 1 pour tout le lot.
+                submissions = []
+                for task in batch.tasks:
+                    trace = generator.generate(task)
+                    stats["generated"] += 1
+                    submissions.append(
+                        ResultSubmission(task_id=task.task_id, trace=trace, attempt=1)
+                    )
+                rejected_ids = _submit_and_log(client, submissions, stats)
+
+                # Tentatives suivantes uniquement pour les refusées (le verdict
+                # vient du coordinateur : le worker ne peut pas vérifier seul).
+                task_by_id = {t.task_id: t for t in batch.tasks}
+                attempt = 2
+                while rejected_ids and attempt <= config.MAX_ATTEMPTS:
+                    retries = []
+                    for task_id in rejected_ids:
+                        trace = generator.generate(task_by_id[task_id])
+                        stats["generated"] += 1
+                        retries.append(
+                            ResultSubmission(task_id=task_id, trace=trace, attempt=attempt)
+                        )
+                    log.info("Tentative %d pour %d tâche(s)", attempt, len(retries))
+                    rejected_ids = _submit_and_log(client, retries, stats)
+                    attempt += 1
+
+                tasks_processed += len(batch.tasks)
+                if config.MAX_TASKS and tasks_processed >= config.MAX_TASKS:
+                    log.info("Limite ESSAIM_MAX_TASKS atteinte (%d tâches)", tasks_processed)
+                    break
+
             except httpx.HTTPStatusError as exc:
                 if exc.response.status_code == 401:
                     log.warning("Clé API refusée — ré-enregistrement de l'appareil")
                     config.DEVICE_FILE.unlink(missing_ok=True)
-                    identity = _ensure_registered(client, config.DEVICE_FILE)
-                    continue
-                raise
-
-            if not batch.tasks:
-                log.info("Aucune tâche disponible — pause de 10 s")
-                time.sleep(10)
-                continue
-
-            log.info("Lot de %d tâche(s) reçu", len(batch.tasks))
-
-            # Tentative 1 pour tout le lot.
-            submissions = []
-            for task in batch.tasks:
-                trace = generator.generate(task)
-                stats["generated"] += 1
-                submissions.append(
-                    ResultSubmission(task_id=task.task_id, trace=trace, attempt=1)
-                )
-            rejected_ids = _submit_and_log(client, submissions, stats)
-
-            # Tentative 2 uniquement pour les refusées (le verdict vient du
-            # coordinateur : le worker ne peut pas vérifier lui-même).
-            if rejected_ids and config.MAX_ATTEMPTS >= 2:
-                task_by_id = {t.task_id: t for t in batch.tasks}
-                retries = []
-                for task_id in rejected_ids:
-                    trace = generator.generate(task_by_id[task_id])
-                    stats["generated"] += 1
-                    retries.append(
-                        ResultSubmission(task_id=task_id, trace=trace, attempt=2)
+                    identity = _ensure_registered_with_retry(client, config.DEVICE_FILE)
+                else:
+                    log.warning(
+                        "Erreur HTTP %d du coordinateur — nouvel essai dans 5 s",
+                        exc.response.status_code,
                     )
-                log.info("Seconde tentative pour %d tâche(s)", len(retries))
-                _submit_and_log(client, retries, stats)
-
-            tasks_processed += len(batch.tasks)
-            if config.MAX_TASKS and tasks_processed >= config.MAX_TASKS:
-                log.info("Limite ESSAIM_MAX_TASKS atteinte (%d tâches)", tasks_processed)
-                break
+                    time.sleep(5)
+            except httpx.RequestError as exc:
+                log.warning(
+                    "Coordinateur injoignable (%s) — nouvel essai dans 5 s",
+                    type(exc).__name__,
+                )
+                time.sleep(5)
     except KeyboardInterrupt:
         log.info("Arrêt demandé (Ctrl+C)")
     finally:

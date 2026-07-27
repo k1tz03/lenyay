@@ -1,6 +1,8 @@
 """Coordinateur Essaim — API FastAPI + mini-dashboard HTML.
 
-Lancement :  python -m coordinator.app   (ou uvicorn coordinator.app:app)
+Lancement :  python -m coordinator.app
+(ESSAIM_HOST / ESSAIM_PORT pris en compte ; avec la CLI uvicorn, passer
+soi-même --host/--port.)
 """
 
 import html
@@ -95,6 +97,9 @@ def get_work(
 @app.post("/results", response_model=SubmitResponse)
 def submit_results(payload: ResultsPayload, device=Depends(require_device)):
     device_id = device["device_id"]
+    # Une tâche déjà acceptée par cet appareil ne rapporte plus rien : pas de
+    # nouveau crédit, pas de doublon dans le dataset (le rollout reste journalisé).
+    already_accepted = db.accepted_task_ids(device_id)
     verdicts: list[Verdict] = []
     earned = 0
     for result in payload.results:
@@ -109,9 +114,10 @@ def submit_results(payload: ResultsPayload, device=Depends(require_device)):
         db.record_rollout(
             device_id, result.task_id, result.attempt, result.trace, extracted, accepted
         )
-        if accepted:
+        if accepted and result.task_id not in already_accepted:
             earned += 1
             _archive_accepted(device_id, task, result.trace, extracted)
+            already_accepted.add(result.task_id)
         verdicts.append(
             Verdict(task_id=result.task_id, accepted=accepted,
                     extracted_answer=extracted, attempt=result.attempt)

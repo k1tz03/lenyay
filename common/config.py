@@ -25,7 +25,8 @@ MODELS_DIR = Path(_env("ESSAIM_MODELS_DIR", str(REPO_ROOT / "models")))
 # --- Worker ----------------------------------------------------------------
 MOCK_MODE = _env("ESSAIM_MOCK", "0") == "1"
 MOCK_ACCURACY = float(_env("ESSAIM_MOCK_ACCURACY", "0.3"))
-BATCH_SIZE = int(_env("ESSAIM_BATCH_SIZE", "4"))
+# Borné à [1, 32] : c'est la limite acceptée par GET /work côté coordinateur.
+BATCH_SIZE = min(32, max(1, int(_env("ESSAIM_BATCH_SIZE", "4"))))
 MAX_ATTEMPTS = int(_env("ESSAIM_ATTEMPTS", "2"))
 # 0 = boucle infinie ; sinon le worker s'arrête après N tâches (pratique en test).
 MAX_TASKS = int(_env("ESSAIM_MAX_TASKS", "0"))

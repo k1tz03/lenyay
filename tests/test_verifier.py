@@ -45,6 +45,15 @@ class TestExtraction:
     def test_negatif(self):
         assert extract_final_answer("The temperature is #### -4") == "-4"
 
+    def test_virgule_decimale_europeenne(self):
+        # "12,50" n'est PAS un groupement de milliers : c'est 12.50.
+        assert extract_final_answer("#### 12,50") == "12.50"
+
+    def test_groupement_mal_forme_prend_le_nombre_complet(self):
+        # Groupes non conformes (pas des paquets de 3) : on retire les
+        # séparateurs plutôt que de tronquer au premier groupe.
+        assert extract_final_answer("#### 1,0000") == "10000"
+
     def test_aucun_nombre(self):
         assert extract_final_answer("Je ne sais pas résoudre ce problème.") is None
 
@@ -66,6 +75,7 @@ class TestVerify:
             ("#### 3.50", "3.5"),  # décimaux équivalents
             ("#### -4", "-4"),
             ("#### 20%", "20"),
+            ("#### 12,50", "12.5"),  # virgule décimale européenne
         ],
     )
     def test_traces_correctes_acceptees(self, trace, expected):
@@ -77,6 +87,8 @@ class TestVerify:
         [
             ("He buys 12 apples and eats 5", "7"),  # mauvais dernier nombre
             ("#### 10", "12"),
+            ("#### 12,50", "12"),  # 12.50 ≠ 12 : ne pas tronquer puis accepter
+            ("#### 12,50", "1250"),  # ni le lire comme un groupement de milliers
             ("Je ne sais pas.", "10"),  # aucun nombre
             ("", "5"),
         ],
