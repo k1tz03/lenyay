@@ -1,0 +1,2 @@
+# Uniquement pour régénérer data/tasks.jsonl (une seule fois)
+datasets>=2.20
