@@ -1,0 +1,6 @@
+# Mode réel uniquement (inférence locale).
+# L'index supplémentaire fournit des wheels CPU précompilés pour Windows —
+# sans lui, pip tente une compilation locale (CMake + MSVC + chemins longs).
+--extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
+llama-cpp-python>=0.3
+huggingface_hub>=0.24
