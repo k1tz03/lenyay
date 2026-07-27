@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# Essaim — état local et données générées (jamais commitées)
+data/essaim.db*
+data/accepted/
+models/
+.essaim_device.json
+
+# Divers
+.env
