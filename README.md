@@ -105,9 +105,40 @@ nouvel essai, jamais de crash.
 .venv/Scripts/python.exe -m pytest
 ```
 
-29 tests couvrent le vérificateur (format `#### N`, virgules de milliers,
+44 tests couvrent le vérificateur (format `#### N`, virgules de milliers,
 virgule décimale européenne, point final, dollars, réponse noyée dans une
-phrase, décimaux, négatifs).
+phrase, décimaux, négatifs) et la suite d'évaluation (scoring, sorties,
+anti-contamination, comparaison) — le tout sur répertoires temporaires,
+sans toucher à l'essaim en marche.
+
+## Évaluation
+
+Le jeu d'éval `data/eval_set.jsonl` (commité, figé une fois) : 200 problèmes
+tirés du split **test** de GSM8K avec un seed fixe — jamais servis à l'essaim,
+avec contrôle anti-contamination affiché au figeage. L'éval est strictement
+déterministe (température 0, seed fixe) et réutilise le vérificateur du
+coordinateur ainsi que le prompt système de production : deux évals du même
+modèle donnent le même score, et v0.1 vs v0.2 se comparent honnêtement.
+
+Évaluer un modèle (~30-40 min sur CPU pour 200 problèmes) :
+
+```bash
+.venv/Scripts/python.exe scripts/eval.py models/qwen2.5-1.5b-instruct-q4_k_m.gguf
+```
+
+Sortie : `results/eval_<modele>_<date>.json` (score global, détail par
+problème, config figée, hash du jeu et du modèle) + résumé `.md` lisible.
+Options : `--limit N` (éval rapide), `--label`, `--eval-set`, `--out-dir`.
+
+Comparer deux évals (delta, problèmes gagnés/perdus ; refuse deux jeux
+différents) :
+
+```bash
+.venv/Scripts/python.exe scripts/compare_evals.py results/eval_v01.json results/eval_v02.json
+```
+
+Re-figer le jeu d'éval (`scripts/seed_eval.py`) refuse d'écraser l'existant
+sans `--force`, car cela invaliderait toutes les évals passées.
 
 ## Régénérer le jeu de tâches (optionnel)
 
