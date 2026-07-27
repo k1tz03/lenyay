@@ -111,13 +111,19 @@ phrase, décimaux, négatifs).
 
 ## Régénérer le jeu de tâches (optionnel)
 
-`data/tasks.jsonl` (200 problèmes GSM8K + réponse attendue) est commité et fait
-foi. Pour le régénérer :
+`data/tasks.jsonl` (7 473 problèmes — l'intégralité du split train de GSM8K —
+avec la réponse attendue) est commité et fait foi. Les `task_id` sont dérivés
+de la position dans le split : re-seeder n'invalide jamais les crédits ni les
+rollouts déjà en base. Pour le régénérer (option `--limit N` pour un
+sous-ensemble) :
 
 ```bash
 .venv/Scripts/python.exe -m pip install -r requirements-seed.txt
 .venv/Scripts/python.exe scripts/seed_tasks.py
 ```
+
+Le coordinateur charge le catalogue au démarrage : le redémarrer après un
+re-seed (le worker encaisse la coupure et reprend tout seul).
 
 ## Structure du repo
 
