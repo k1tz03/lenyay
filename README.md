@@ -154,6 +154,19 @@ différents) :
 Re-figer le jeu d'éval (`scripts/seed_eval.py`) refuse d'écraser l'existant
 sans `--force`, car cela invaliderait toutes les évals passées.
 
+## Export du dataset de fine-tuning (phase 1)
+
+```bash
+.venv/Scripts/python.exe scripts/export_dataset.py
+```
+
+Produit `data/exports/dataset-<date>-<n>.jsonl` au format chat
+(system/user/assistant, avec le prompt système de production) à partir des
+traces acceptées : les traces mock sont écartées, tout énoncé présent dans le
+jeu d'éval est exclu (anti-contamination, compté et affiché), et une seule
+trace par problème est gardée par défaut (`--all-traces` pour conserver les
+chemins de raisonnement distincts).
+
 ## Régénérer le jeu de tâches (optionnel)
 
 `data/tasks.jsonl` (7 473 problèmes — l'intégralité du split train de GSM8K —

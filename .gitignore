@@ -8,6 +8,7 @@ __pycache__/
 data/lenyay.db*
 .lenyay_device.json
 data/accepted/
+data/exports/
 models/
 results/*.partial.jsonl
 
