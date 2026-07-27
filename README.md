@@ -128,7 +128,10 @@ modèle donnent le même score, et v0.1 vs v0.2 se comparent honnêtement.
 
 Sortie : `results/eval_<modele>_<date>.json` (score global, détail par
 problème, config figée, hash du jeu et du modèle) + résumé `.md` lisible.
-Options : `--limit N` (éval rapide), `--label`, `--eval-set`, `--out-dir`.
+Un checkpoint `.partial.jsonl` est écrit au fil de l'eau (filet en cas
+d'interruption) puis supprimé à la fin. Options : `--limit N` (éval rapide,
+**non comparable** à une éval complète — la comparaison la refuse),
+`--label`, `--eval-set`, `--out-dir`.
 
 Comparer deux évals (delta, problèmes gagnés/perdus ; refuse deux jeux
 différents) :
@@ -162,9 +165,11 @@ re-seed (le worker encaisse la coupure et reprend tout seul).
 coordinator/          FastAPI : endpoints, vérificateur, SQLite, dashboard
 worker/               boucle du client : HTTP, génération (mock ou llama.cpp)
 common/               schémas Pydantic partagés + configuration ESSAIM_*
-data/                 tasks.jsonl (figé, commité) ; essaim.db et accepted/ (générés)
-scripts/              seed_tasks.py
-tests/                tests pytest du vérificateur
+data/                 tasks.jsonl et eval_set.jsonl (figés, commités) ;
+                      essaim.db et accepted/ (générés)
+scripts/              seed_tasks.py, seed_eval.py, eval.py, compare_evals.py
+tests/                tests pytest (vérificateur + suite d'éval)
+results/              résultats d'éval (générés)
 models/               GGUF téléchargés (ignoré par git)
 .essaim_device.json   identité du worker, créée au 1er lancement (ignorée par git)
 ```

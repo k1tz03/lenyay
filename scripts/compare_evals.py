@@ -21,6 +21,12 @@ def compare(res_a: dict, res_b: dict) -> dict:
         )
     by_id_a = {d["task_id"]: d for d in res_a["details"]}
     by_id_b = {d["task_id"]: d for d in res_b["details"]}
+    if set(by_id_a) != set(by_id_b):
+        raise ValueError(
+            "Les deux évals ne couvrent pas les mêmes problèmes "
+            f"({len(by_id_a)} vs {len(by_id_b)}) — l'une est probablement une "
+            "éval partielle (--limit) : comparaison refusée."
+        )
     common = [tid for tid in by_id_a if tid in by_id_b]
 
     gained, lost = [], []
@@ -71,7 +77,14 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Compare deux résultats d'éval")
     parser.add_argument("baseline", type=Path, help="JSON de l'éval de référence")
     parser.add_argument("candidate", type=Path, help="JSON de l'éval à comparer")
+    parser.add_argument("--out", type=Path, default=None,
+                        help="écrire aussi le rapport markdown dans ce fichier (UTF-8)")
     args = parser.parse_args()
+
+    # Windows : stdout redirigé vers un fichier est en cp1252 par défaut, qui
+    # ne connaît pas « → » ; on force l'UTF-8 pour que « > rapport.md » marche.
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
 
     res_a = json.loads(args.baseline.read_text(encoding="utf-8"))
     res_b = json.loads(args.candidate.read_text(encoding="utf-8"))
@@ -79,8 +92,11 @@ def main() -> None:
         result = compare(res_a, res_b)
     except ValueError as exc:
         sys.exit(str(exc))
-    print(render_markdown(result, res_a.get("label", args.baseline.stem),
-                          res_b.get("label", args.candidate.stem)))
+    report = render_markdown(result, res_a.get("label", args.baseline.stem),
+                             res_b.get("label", args.candidate.stem))
+    if args.out is not None:
+        args.out.write_text(report, encoding="utf-8")
+    print(report)
 
 
 if __name__ == "__main__":

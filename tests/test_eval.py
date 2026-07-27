@@ -13,6 +13,7 @@ import coordinator.verifier
 from scripts.compare_evals import compare
 from scripts.eval import (
     EVAL_CONFIG,
+    append_partial,
     load_eval_set,
     render_markdown,
     run_eval,
@@ -200,3 +201,20 @@ class TestCompare:
         res_b = _fake_result("h2", {"t1": True})
         with pytest.raises(ValueError):
             compare(res_a, res_b)
+
+    def test_refus_si_ensembles_de_problemes_differents(self):
+        # Même jeu figé (même hash) mais une éval partielle (--limit) : le
+        # delta comparerait des accuracies sur des ensembles différents.
+        res_a = _fake_result("h1", {"t1": True, "t2": False, "t3": True})
+        res_b = _fake_result("h1", {"t1": True})
+        with pytest.raises(ValueError):
+            compare(res_a, res_b)
+
+
+class TestPartial:
+    def test_append_partial_ecrit_du_jsonl_au_fil_de_l_eau(self, tmp_path):
+        path = tmp_path / "eval.partial.jsonl"
+        append_partial(path, {"task_id": "t1", "correct": True})
+        append_partial(path, {"task_id": "t2", "correct": False})
+        lines = [json.loads(l) for l in path.read_text(encoding="utf-8").splitlines()]
+        assert [l["task_id"] for l in lines] == ["t1", "t2"]

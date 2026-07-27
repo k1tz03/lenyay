@@ -129,6 +129,13 @@ def render_markdown(payload: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
+def append_partial(path: Path, record: dict) -> None:
+    """Checkpoint au fil de l'eau : un crash à mi-éval ne perd pas tout."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8", newline="\n") as f:
+        f.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+
 def write_results(
     out_dir: Path, model_name: str, payload: dict, date_str: str | None = None
 ) -> tuple[Path, Path]:
@@ -158,6 +165,10 @@ def main() -> None:
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s",
                         datefmt="%H:%M:%S")
+    # Windows : stdout redirigé vers un fichier est en cp1252 par défaut ;
+    # on force l'UTF-8 pour que « > rapport.md » fonctionne toujours.
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
 
     if not args.model.exists():
         sys.exit(f"Modèle introuvable : {args.model}")
@@ -194,9 +205,13 @@ def main() -> None:
         )
         return output["choices"][0]["message"]["content"] or ""
 
+    label = args.label or args.model.stem
+    partial_path = args.out_dir / f"eval_{sanitize_name(label)}.partial.jsonl"
+    partial_path.unlink(missing_ok=True)
     running = {"correct": 0}
 
     def on_progress(i: int, total: int, detail: dict) -> None:
+        append_partial(partial_path, detail)
         running["correct"] += int(detail["correct"])
         mark = "✓" if detail["correct"] else "✗"
         log.info("[%d/%d] %s %s (acc. courante : %.1f%%)",
@@ -211,10 +226,11 @@ def main() -> None:
         "model": args.model.name,
         "model_path": str(args.model),
         "model_sha256": model_hash,
-        "label": args.label or args.model.stem,
+        "label": label,
         "date": datetime.now(timezone.utc).isoformat(),
         "eval_set": str(args.eval_set),
         "eval_set_hash": eval_set_hash,
+        "limit": args.limit or None,  # éval partielle → non comparable
         "config": {
             **EVAL_CONFIG,
             "system_prompt": SYSTEM_PROMPT,
@@ -224,7 +240,8 @@ def main() -> None:
         "duration_seconds": round(duration, 1),
         "details": details,
     }
-    json_path, md_path = write_results(args.out_dir, args.label or args.model.stem, payload)
+    json_path, md_path = write_results(args.out_dir, label, payload)
+    partial_path.unlink(missing_ok=True)  # le résultat complet est écrit
     print()
     print(render_markdown(payload))
     print(f"Résultats : {json_path}\nRésumé    : {md_path}")

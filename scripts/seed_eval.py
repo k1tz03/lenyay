@@ -58,7 +58,9 @@ def write_eval_set(records: list[dict], out_path: Path, force: bool = False) -> 
             "(--force pour le régénérer, ce qui invalide les évals passées.)"
         )
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    with out_path.open("w", encoding="utf-8") as f:
+    # newline="\n" : le sha256 du jeu figé doit identifier le CONTENU, pas les
+    # fins de ligne de la plateforme (CRLF Windows vs LF du blob git).
+    with out_path.open("w", encoding="utf-8", newline="\n") as f:
         for record in records:
             f.write(json.dumps(record, ensure_ascii=False) + "\n")
 

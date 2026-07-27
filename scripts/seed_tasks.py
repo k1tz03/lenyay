@@ -43,7 +43,7 @@ def main() -> None:
 
     out = config.TASKS_FILE
     out.parent.mkdir(parents=True, exist_ok=True)
-    with out.open("w", encoding="utf-8") as f:
+    with out.open("w", encoding="utf-8", newline="\n") as f:
         for i, row in enumerate(ds):
             record = {
                 "task_id": f"gsm8k-train-{i:04d}",
