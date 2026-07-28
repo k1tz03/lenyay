@@ -58,14 +58,17 @@ def main() -> None:
     examples = load_and_validate(args.dataset)
     print(f"{len(examples)} exemples valides chargés depuis {args.dataset}")
 
-    import torch
-    from datasets import Dataset
-    from trl import SFTConfig, SFTTrainer
-
+    # unsloth doit s'importer AVANT trl/transformers/peft : son patching
+    # écrase sinon l'eos_token avec un placeholder hors vocabulaire
+    # (unslothai/unsloth#2797, rencontré sur pod avec TRL 5.5).
     try:  # le nom canonique a changé selon les versions d'unsloth
         from unsloth import FastModel
     except ImportError:  # pragma: no cover
         from unsloth import FastLanguageModel as FastModel
+
+    import torch
+    from datasets import Dataset
+    from trl import SFTConfig, SFTTrainer
 
     model, tokenizer = FastModel.from_pretrained(
         model_name=args.base_model,
