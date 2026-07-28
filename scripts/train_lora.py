@@ -96,10 +96,16 @@ def main() -> None:
     print(ds_train[0]["text"][:400])
     print("---------------------------------------------------------")
 
+    # TRL récent a renommé max_seq_length -> max_length : on détecte.
+    import inspect
+
+    seq_param = ("max_length"
+                 if "max_length" in inspect.signature(SFTConfig.__init__).parameters
+                 else "max_seq_length")
     config = SFTConfig(
         output_dir=str(args.out / "checkpoints"),
         dataset_text_field="text",
-        max_seq_length=2048,
+        **{seq_param: 2048},
         per_device_train_batch_size=8,
         gradient_accumulation_steps=2,
         num_train_epochs=args.epochs,
