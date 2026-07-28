@@ -167,6 +167,31 @@ jeu d'éval est exclu (anti-contamination, compté et affiché), et une seule
 trace par problème est gardée par défaut (`--all-traces` pour conserver les
 chemins de raisonnement distincts).
 
+## Entraîner la v0.2 (LoRA, GPU loué)
+
+Sur un pod GPU loué (RunPod, Vast.ai… — RTX 4090 conseillée, ~0,50 $/h),
+uploader **deux fichiers** : `scripts/train_lora.py` et le dernier
+`data/exports/dataset-*.jsonl`, puis :
+
+```bash
+pip install --upgrade --force-reinstall --no-cache-dir unsloth unsloth_zoo
+```
+
+```bash
+python train_lora.py dataset-2026-07-28-2299.jsonl
+```
+
+(~30-60 min.) Rapatrier ensuite le `*q4_k_m*.gguf` produit dans `models/`
+sous le nom `lenyay-v0.2-q4_k_m.gguf`, **arrêter le pod**, puis en local :
+
+```bash
+.venv/Scripts/python.exe scripts/eval.py models/lenyay-v0.2-q4_k_m.gguf --label v0.2-lora
+```
+
+```bash
+.venv/Scripts/python.exe scripts/compare_evals.py results/eval_v0.1-baseline_2026-07-27-1801.json results/eval_v0.2-lora_*.json
+```
+
 ## Régénérer le jeu de tâches (optionnel)
 
 `data/tasks.jsonl` (7 473 problèmes — l'intégralité du split train de GSM8K —
