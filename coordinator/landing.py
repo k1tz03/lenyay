@@ -147,6 +147,23 @@ button{font:inherit}
   text-decoration:none; border-bottom:1.5px solid var(--verd)}
 .learn:hover{color:var(--verd)}
 
+/* ---- La zone de saisie ---- */
+.composer{border-top:1px solid var(--line); background:rgba(242,246,243,.9);
+  padding:.85rem 1.1rem}
+.composer .inner{gap:.5rem}
+.box{display:flex; gap:.5rem; align-items:flex-end; background:var(--panel);
+  border:1px solid var(--line); border-radius:14px; padding:.5rem .5rem .5rem .9rem;
+  box-shadow:var(--lift)}
+.box:focus-within{border-color:var(--verd)}
+.box textarea{flex:1; border:none; outline:none; resize:none; font:inherit;
+  font-size:1rem; background:none; color:var(--ink); max-height:9rem; padding:.4rem 0}
+.box button{border:none; border-radius:10px; background:var(--verd-deep); color:#fff;
+  width:2.5rem; height:2.5rem; flex:none; cursor:pointer; display:grid;
+  place-items:center; font-size:1.1rem; transition:background .15s}
+.box button:hover:not(:disabled){background:var(--verd)}
+.box button:disabled{opacity:.45; cursor:default}
+.legalese{font-size:.78rem; color:var(--soft); text-align:center; margin:.55rem 0 0}
+
 /* ---- Connexion ---- */
 .authtabs{display:flex; gap:.3rem; background:var(--panel-2); border:1px solid var(--line);
   border-radius:10px; padding:.25rem; margin-bottom:1.1rem}

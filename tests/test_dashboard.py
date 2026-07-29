@@ -83,6 +83,16 @@ class TestLanding:
         script = client.get("/").text.rsplit("<script>", 1)[1]
         assert "\nblank();" in script
 
+    def test_les_elements_ont_leur_style(self, client_and_answers):
+        """Garde-fou : chaque bloc HTML clé doit avoir sa règle CSS. Un
+        découpage de la feuille de style a déjà effacé le composer une fois."""
+        client, _ = client_and_answers
+        style = client.get("/").text.split("<style>")[1].split("</style>")[0]
+        for rule in (".box{", ".box textarea{", ".composer{", ".picker button",
+                     ".codebox", ".thread{", ".wallet{"):
+            assert rule in style, rule
+        assert style.count("{") == style.count("}")
+
     def test_la_page_decouvrir_raconte_tout(self, client_and_answers):
         """L'explication vit sur sa propre page : le cycle jour/nuit animé, la
         vraie trace, les crédits, l'état honnête et l'installation."""
