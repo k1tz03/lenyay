@@ -157,7 +157,12 @@ def submit_results(payload: ResultsPayload, device=Depends(require_device)):
 
 
 @app.get("/stats", response_model=Stats)
-def get_stats():
+def get_stats(request: Request):
+    # Endpoint public (le dashboard le poll), donc borné par IP contre
+    # l'amplification : chaque appel agrège toute la table rollouts.
+    client_ip = request.client.host if request.client else "inconnue"
+    if not limits.public_limiter.allow(client_ip, config.STATS_RATE_LIMIT, 60.0):
+        raise HTTPException(status_code=429, detail="Trop de requêtes /stats")
     return Stats(**db.stats(), tasks_in_catalog=tasks.count())
 
 

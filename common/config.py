@@ -57,6 +57,8 @@ REGISTER_LIMIT = int(_env("REGISTER_LIMIT", "20"))
 DAILY_CREDIT_CAP = int(_env("DAILY_CREDIT_CAP", "2000"))
 # Une trace correcte mais plus courte que ça est jugée creuse (pas de crédit).
 MIN_TRACE_CHARS = int(_env("MIN_TRACE_CHARS", "40"))
+# Appels /stats par IP et par minute (le dashboard poll ~15/min).
+STATS_RATE_LIMIT = int(_env("STATS_RATE_LIMIT", "60"))
 
 # --- Inférence -------------------------------------------------------------
 TEMPERATURE = float(_env("TEMPERATURE", "0.8"))

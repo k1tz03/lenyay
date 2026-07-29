@@ -36,6 +36,15 @@ CREATE TABLE IF NOT EXISTS rollouts (
     accepted         INTEGER NOT NULL,
     created_at       TEXT NOT NULL
 );
+
+-- Sans ces index, chaque requête authentifiée fait un scan complet d'une
+-- table qui grossit sans borne (accepted_task_ids, accepted_today, stats).
+CREATE INDEX IF NOT EXISTS idx_rollouts_device_accepted
+    ON rollouts (device_id, accepted);
+CREATE INDEX IF NOT EXISTS idx_rollouts_task_accepted
+    ON rollouts (task_id, accepted);
+CREATE INDEX IF NOT EXISTS idx_rollouts_accepted
+    ON rollouts (accepted);
 """
 
 
@@ -46,8 +55,12 @@ def _now() -> str:
 @contextmanager
 def _connect():
     config.DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(config.DB_PATH)
+    # timeout : attendre le writer plutôt que lever « database is locked ».
+    conn = sqlite3.connect(config.DB_PATH, timeout=30.0)
     conn.row_factory = sqlite3.Row
+    # WAL : lecteurs (dashboard) et writer (workers) ne se bloquent plus.
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout=30000")
     try:
         yield conn
         conn.commit()

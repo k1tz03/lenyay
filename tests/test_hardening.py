@@ -38,6 +38,7 @@ def client_and_answers(tmp_path, monkeypatch):
     from coordinator import limits
     limits.device_limiter.reset()
     limits.register_limiter.reset()
+    limits.public_limiter.reset()
 
     from fastapi.testclient import TestClient
     from coordinator.app import app
@@ -102,6 +103,23 @@ class TestPlausibilite:
         verdict = response.json()["verdicts"][0]
         assert verdict["accepted"] is False  # correcte mais creuse -> pas de crédit
         assert response.json()["credits_earned"] == 0
+
+
+class TestDoS:
+    def test_stats_rate_limite(self, client_and_answers, monkeypatch):
+        client, _ = client_and_answers
+        monkeypatch.setattr("common.config.STATS_RATE_LIMIT", 3)
+        codes = [client.get("/stats").status_code for _ in range(4)]
+        assert codes[:3] == [200] * 3 and codes[3] == 429
+
+    def test_limiteur_purge_les_cles_mortes(self):
+        from coordinator.limits import SlidingWindowLimiter
+        lim = SlidingWindowLimiter()
+        lim._PURGE_THRESHOLD = 5
+        # window nulle → chaque hit est aussitôt périmé, les clés doivent partir
+        for i in range(50):
+            lim.allow(f"ip-{i}", limit=1, window_seconds=0.0)
+        assert lim.size() <= 6  # borné, pas 50
 
 
 class TestPlafondQuotidien:
