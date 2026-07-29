@@ -17,7 +17,9 @@ $ErrorActionPreference = "Stop"
 # --- Reglages -----------------------------------------------------------
 $Coordinator = if ($env:LENYAY_COORDINATOR_URL) { $env:LENYAY_COORDINATOR_URL }
                else { "https://lenyay.org" }   # <- domaine public
-$Repo        = "https://github.com/k1tz03/lenyay"
+# codeload et non github.com/.../archive/ : cette derniere repond 404 a
+# certains clients selon leur agent utilisateur.
+$Archive     = "https://codeload.github.com/k1tz03/lenyay/zip/refs/heads/main"
 $InstallDir  = Join-Path $env:LOCALAPPDATA "Lenyay"
 $Code        = Join-Path $InstallDir "code"
 # Modele et identite vivent HORS du dossier de code : une reinstallation ne
@@ -91,7 +93,7 @@ if (Test-Path $staging) { Remove-Item $staging -Recurse -Force }
 New-Item -ItemType Directory -Path $staging -Force | Out-Null
 $zip = Join-Path $staging "lenyay.zip"
 try {
-    Invoke-WebRequest -Uri "$Repo/archive/refs/heads/main.zip" -OutFile $zip -UseBasicParsing
+    Invoke-WebRequest -Uri $Archive -OutFile $zip -UseBasicParsing
 } catch {
     Die "Telechargement impossible ($($_.Exception.Message)). Verifie ta connexion."
 }

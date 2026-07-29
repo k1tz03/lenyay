@@ -10,7 +10,9 @@
 set -euo pipefail
 
 COORDINATOR="${LENYAY_COORDINATOR_URL:-https://lenyay.org}"
-REPO="https://github.com/k1tz03/lenyay"
+# codeload et non github.com/.../archive/ : cette derniere renvoie 404 aux
+# requetes du curl par defaut (GitHub filtre sur l'agent utilisateur).
+ARCHIVE="https://codeload.github.com/k1tz03/lenyay/tar.gz/refs/heads/main"
 INSTALL_DIR="${LENYAY_HOME:-$HOME/.lenyay}"
 CODE="$INSTALL_DIR/code"
 # Modèle et identité vivent HORS du dossier de code : une réinstallation ne
@@ -56,10 +58,10 @@ mkdir -p "$INSTALL_DIR" "$DATA_DIR" "$MODELS_DIR"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 if command -v curl >/dev/null 2>&1; then
-    curl -fsSL "$REPO/archive/refs/heads/main.tar.gz" -o "$TMP/lenyay.tar.gz" \
+    curl -fsSL "$ARCHIVE" -o "$TMP/lenyay.tar.gz" \
         || die "Telechargement impossible. Verifie ta connexion."
 elif command -v wget >/dev/null 2>&1; then
-    wget -qO "$TMP/lenyay.tar.gz" "$REPO/archive/refs/heads/main.tar.gz" \
+    wget -qO "$TMP/lenyay.tar.gz" "$ARCHIVE" \
         || die "Telechargement impossible. Verifie ta connexion."
 else
     die "curl ou wget est necessaire"

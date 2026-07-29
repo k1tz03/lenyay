@@ -78,6 +78,15 @@ class TestPreservationDesDonnees:
                     assert script.index(destructive) > fetch, destructive
 
 
+class TestSourceDuTelechargement:
+    def test_codeload_et_pas_archive(self, ps1, sh):
+        """github.com/.../archive/ renvoie 404 selon l'agent utilisateur
+        (le curl par défaut de Linux se fait jeter) ; codeload répond à tous."""
+        for script in (ps1, sh):
+            assert "codeload.github.com" in script
+            assert "/archive/refs/heads/" not in script
+
+
 class TestMessagesDErreur:
     def test_ps1_ne_ferme_pas_la_fenetre(self, ps1):
         """`irm | iex` exécute dans la session de l'utilisateur : un exit
