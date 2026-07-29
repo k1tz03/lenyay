@@ -37,6 +37,8 @@ class WorkBatch(BaseModel):
 
 class RegisterRequest(BaseModel):
     device_name: str = Field(default="appareil-anonyme", max_length=64)
+    # Lier l'appareil à un compte : ses gains alimentent alors la bourse.
+    account_key: str | None = Field(default=None, max_length=128)
 
 
 class RegisterResponse(BaseModel):
@@ -80,6 +82,59 @@ class ContributorStat(BaseModel):
     device_name: str
     credits: int
     last_seen: str = ""  # ISO 8601 — « dernière activité » sur le dashboard
+
+
+# --- Comptes et questions ---------------------------------------------------
+
+
+class AccountRequest(BaseModel):
+    handle: str = Field(default="anonyme", max_length=40)
+
+
+class AccountResponse(BaseModel):
+    account_id: str
+    account_key: str
+    handle: str
+    credits: int
+
+
+class AccountState(BaseModel):
+    handle: str
+    credits: int
+    devices: list[dict]
+    questions: list[dict]
+
+
+class AskRequest(BaseModel):
+    prompt: str = Field(min_length=1, max_length=2000)
+
+
+class AskResponse(BaseModel):
+    question_id: str
+    status: str
+    cost: int
+    credits_left: int
+
+
+class QuestionState(BaseModel):
+    id: str
+    status: str
+    prompt: str
+    answer: str | None = None
+    device_name: str | None = None
+
+
+class ServedQuestion(BaseModel):
+    id: str
+    prompt: str
+
+
+class ServeOffer(BaseModel):
+    question: ServedQuestion | None = None
+
+
+class AnswerSubmission(BaseModel):
+    answer: str = Field(min_length=1, max_length=8000)
 
 
 class Stats(BaseModel):

@@ -157,7 +157,7 @@ def run() -> None:
     generator = make_generator()
     mode = "MOCK" if config.MOCK_MODE else "RÉEL"
 
-    stats = {"generated": 0, "accepted": 0, "credits": 0}
+    stats = {"generated": 0, "accepted": 0, "credits": 0, "served": 0}
     tasks_processed = 0
     identity = {"device_name": "non enregistré"}
     try:
@@ -169,6 +169,17 @@ def run() -> None:
         # solde par une pause puis un nouvel essai, jamais par un crash.
         while True:
             try:
+                # Priorité absolue : quelqu'un attend une réponse, maintenant.
+                question = client.take_question()
+                if question is not None:
+                    log.info("Question d'un membre : « %s »", question["prompt"][:70])
+                    answer = generator.answer(question["prompt"])
+                    result = client.answer_question(question["id"], answer)
+                    stats["served"] += 1
+                    stats["credits"] = result["total_credits"]
+                    log.info("  → répondu (+%d crédits)", result["earned"])
+                    continue
+
                 batch = client.get_work(config.BATCH_SIZE)
 
                 if not batch.tasks:
@@ -245,8 +256,8 @@ def run() -> None:
         client.close()
         log.info(
             "— Résumé de session : %d trace(s) générée(s), %d acceptée(s), "
-            "%d crédit(s) au total pour %s —",
-            stats["generated"], stats["accepted"], stats["credits"],
+            "%d question(s) de membres traitée(s), %d crédit(s) au total pour %s —",
+            stats["generated"], stats["accepted"], stats["served"], stats["credits"],
             identity["device_name"],
         )
 

@@ -74,6 +74,22 @@ MAX_ATTEMPTS_PER_TASK = int(_env("MAX_ATTEMPTS_PER_TASK", "8"))
 # Appareils distincts en échec avant qu'une tâche soit déclarée « dure ».
 HARD_MIN_DEVICES = int(_env("HARD_MIN_DEVICES", "2"))
 
+# --- Comptes et questions --------------------------------------------------
+# Crédits offerts à l'ouverture d'un compte : de quoi essayer l'IA sans rien
+# donner d'abord — c'est la promesse « gratuite » tenue dès la première minute.
+WELCOME_CREDITS = int(_env("WELCOME_CREDITS", "20"))
+# Ce que coûte une question servie par le réseau.
+QUESTION_COST = int(_env("QUESTION_COST", "3"))
+# Ce que rapporte le fait d'y répondre (plus qu'un calcul : c'est du temps réel).
+SERVE_REWARD = int(_env("SERVE_REWARD", "5"))
+# Longueur maximale d'une question.
+QUESTION_MAX_CHARS = int(_env("QUESTION_MAX_CHARS", "2000"))
+# Calculs vérifiés exigés avant de pouvoir servir des questions : on ne confie
+# pas la parole du réseau à une machine dont on ne sait rien.
+SERVE_MIN_ACCEPTED = int(_env("SERVE_MIN_ACCEPTED", "20"))
+# Au-delà, une question décrochée mais sans réponse retourne à la file.
+SERVE_TIMEOUT = int(_env("SERVE_TIMEOUT", "180"))
+
 # --- Inférence -------------------------------------------------------------
 TEMPERATURE = float(_env("TEMPERATURE", "0.8"))
 MAX_TOKENS = int(_env("MAX_TOKENS", "640"))

@@ -18,6 +18,17 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from common import config
+from common.schemas import (  # noqa: F401 — l'API expose ces modèles
+    AccountRequest,
+    AccountResponse,
+    AccountState,
+    AnswerSubmission,
+    AskRequest,
+    AskResponse,
+    QuestionState,
+    ServedQuestion,
+    ServeOffer,
+)
 from common.schemas import (
     RegisterRequest,
     RegisterResponse,
@@ -123,6 +134,15 @@ def _archive_accepted(
 # --- API -------------------------------------------------------------------
 
 
+def require_account(x_account_key: str | None = Header(default=None, alias="X-Account-Key")):
+    if not x_account_key:
+        raise HTTPException(status_code=401, detail="En-tête X-Account-Key manquant")
+    account = db.account_for_key(x_account_key)
+    if account is None:
+        raise HTTPException(status_code=401, detail="Compte inconnu")
+    return account
+
+
 @app.post("/devices/register", response_model=RegisterResponse)
 def register(payload: RegisterRequest, request: Request):
     client_ip = request.client.host if request.client else "inconnue"
@@ -131,7 +151,13 @@ def register(payload: RegisterRequest, request: Request):
             status_code=429,
             detail="Trop d'enregistrements depuis cette adresse — réessaie plus tard",
         )
-    device_id, api_key = db.register_device(payload.device_name)
+    account_id = None
+    if payload.account_key:
+        account = db.account_for_key(payload.account_key)
+        if account is None:
+            raise HTTPException(status_code=401, detail="Clé de compte inconnue")
+        account_id = account["account_id"]
+    device_id, api_key = db.register_device(payload.device_name, account_id)
     logger.info("Nouvel appareil enregistré : %s (%s)", payload.device_name, device_id[:8])
     return RegisterResponse(device_id=device_id, api_key=api_key)
 
@@ -255,6 +281,97 @@ def _submit_locked(payload: ResultsPayload, device, device_id: str) -> SubmitRes
         device["device_name"], len(payload.results), earned, total,
     )
     return SubmitResponse(verdicts=verdicts, credits_earned=earned, total_credits=total)
+
+
+# --- Comptes ---------------------------------------------------------------
+
+
+@app.post("/accounts", response_model=AccountResponse)
+def create_account(payload: AccountRequest, request: Request):
+    client_ip = request.client.host if request.client else "inconnue"
+    if not limits.register_limiter.allow(f"acct:{client_ip}", config.REGISTER_LIMIT, 3600.0):
+        raise HTTPException(status_code=429, detail="Trop de comptes créés depuis cette adresse")
+    handle = payload.handle.strip() or "anonyme"
+    account_id, account_key = db.create_account(handle, config.WELCOME_CREDITS)
+    logger.info("Nouveau compte : %s (%s…)", handle, account_id[:8])
+    return AccountResponse(account_id=account_id, account_key=account_key,
+                           handle=handle, credits=config.WELCOME_CREDITS)
+
+
+@app.get("/accounts/me", response_model=AccountState)
+def account_state(account=Depends(require_account)):
+    return AccountState(
+        handle=account["handle"],
+        credits=account["credits"],
+        devices=db.account_devices(account["account_id"]),
+        questions=db.recent_questions(account["account_id"]),
+    )
+
+
+# --- Poser une question au réseau ------------------------------------------
+
+
+@app.post("/ask", response_model=AskResponse)
+def ask(payload: AskRequest, account=Depends(require_account)):
+    """Le chaînon : une question part sur le réseau et sera traitée par la
+    machine d'un autre membre, payée en crédits."""
+    account_id = account["account_id"]
+    if not limits.device_limiter.allow(f"ask:{account_id}", config.RATE_LIMIT, 60.0):
+        raise HTTPException(status_code=429, detail="Trop de questions à la suite")
+    if not db.spend_credits(account_id, config.QUESTION_COST):
+        raise HTTPException(
+            status_code=402,
+            detail=f"Crédits insuffisants : il en faut {config.QUESTION_COST}. "
+                   "Fais tourner Lenyay pour en gagner.",
+        )
+    question_id = db.create_question(account_id, payload.prompt.strip(), config.QUESTION_COST)
+    remaining = db.account_for_key(account["api_key"])["credits"]
+    logger.info("Question %s posée par %s", question_id, account["handle"])
+    return AskResponse(question_id=question_id, status="pending",
+                       cost=config.QUESTION_COST, credits_left=remaining)
+
+
+@app.get("/ask/{question_id}", response_model=QuestionState)
+def question_state(question_id: str):
+    """Suivi public d'une question : son identifiant fait office de jeton."""
+    db.release_stale_questions(config.SERVE_TIMEOUT)
+    row = db.get_question(question_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Question inconnue")
+    return QuestionState(id=row["id"], status=row["status"], prompt=row["prompt"],
+                         answer=row["answer"], device_name=row["device_name"])
+
+
+# --- Servir une question (côté machine) ------------------------------------
+
+
+@app.get("/serve", response_model=ServeOffer)
+def serve(device=Depends(require_device)):
+    """Une machine éprouvée vient chercher une question à traiter."""
+    device_id = device["device_id"]
+    if db.accepted_count(device_id) < config.SERVE_MIN_ACCEPTED:
+        # On ne confie pas la parole du réseau à une machine sans historique.
+        return ServeOffer(question=None)
+    db.release_stale_questions(config.SERVE_TIMEOUT)
+    row = db.claim_question(device_id, device["device_name"])
+    if row is None:
+        return ServeOffer(question=None)
+    logger.info("Question %s confiée à %s", row["id"], device["device_name"])
+    return ServeOffer(question=ServedQuestion(id=row["id"], prompt=row["prompt"]))
+
+
+@app.post("/serve/{question_id}")
+def submit_answer(question_id: str, payload: AnswerSubmission,
+                  device=Depends(require_device)):
+    if not db.answer_question(question_id, device["device_id"], payload.answer.strip()):
+        raise HTTPException(
+            status_code=409,
+            detail="Cette question ne t'a pas été confiée, ou a déjà été traitée.",
+        )
+    total = db.add_credits(device["device_id"], config.SERVE_REWARD)
+    logger.info("Question %s traitée par %s (+%d crédits)",
+                question_id, device["device_name"], config.SERVE_REWARD)
+    return {"earned": config.SERVE_REWARD, "total_credits": total}
 
 
 @app.get("/stats", response_model=Stats)

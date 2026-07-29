@@ -22,6 +22,13 @@ SYSTEM_PROMPT = (
     "in the exact format: #### <number>"
 )
 
+# Quand la machine répond à un membre du réseau plutôt qu'à un exercice.
+ASSISTANT_PROMPT = (
+    "Tu es l'assistant de Lenyay, servi par l'ordinateur d'un membre du réseau. "
+    "Tu réponds en français, clairement et utilement, sans bavardage. "
+    "Si tu ne sais pas, tu le dis simplement."
+)
+
 
 def _ensure_model() -> Path:
     """Renvoie le chemin du GGUF local, en le téléchargeant si nécessaire.
@@ -81,6 +88,19 @@ class LlamaGenerator:
                 {"role": "user", "content": task.prompt},
             ],
             temperature=config.TEMPERATURE,
+            max_tokens=config.MAX_TOKENS,
+        )
+        return output["choices"][0]["message"]["content"] or ""
+
+    def answer(self, question: str) -> str:
+        """Répondre à la question d'un membre du réseau — pas un calcul vérifié,
+        une vraie conversation. Ton posé, français, sans bavardage."""
+        output = self._llm.create_chat_completion(
+            messages=[
+                {"role": "system", "content": ASSISTANT_PROMPT},
+                {"role": "user", "content": question},
+            ],
+            temperature=0.7,
             max_tokens=config.MAX_TOKENS,
         )
         return output["choices"][0]["message"]["content"] or ""

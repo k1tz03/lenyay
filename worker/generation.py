@@ -37,6 +37,9 @@ class MockGenerator:
             answer = str(random.randint(0, 999))
         return f"(trace simulée) Je réfléchis pas à pas... #### {answer}"
 
+    def answer(self, question: str) -> str:
+        return f"(réponse simulée à : {question[:60]})"
+
 
 def make_generator():
     if config.MOCK_MODE:

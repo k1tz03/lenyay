@@ -37,6 +37,18 @@ class CoordinatorClient:
         resp.raise_for_status()
         return WorkBatch(**resp.json())
 
+    def take_question(self) -> dict | None:
+        """Va voir si un membre attend une réponse. Renvoie None sinon."""
+        resp = self._http.get("/serve", headers=self._headers())
+        resp.raise_for_status()
+        return resp.json().get("question")
+
+    def answer_question(self, question_id: str, answer: str) -> dict:
+        resp = self._http.post(f"/serve/{question_id}", json={"answer": answer},
+                               headers=self._headers())
+        resp.raise_for_status()
+        return resp.json()
+
     def submit(self, results: list[ResultSubmission]) -> SubmitResponse:
         resp = self._http.post(
             "/results",
