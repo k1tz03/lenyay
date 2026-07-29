@@ -30,6 +30,15 @@ CREATE TABLE IF NOT EXISTS accounts (
     created_at TEXT NOT NULL
 );
 
+-- Le retour des membres sur une réponse : 👍/👎. Un avis par message, le
+-- dernier gagne. C'est le signal de qualité qui garde le corpus propre.
+CREATE TABLE IF NOT EXISTS feedback (
+    message_id INTEGER PRIMARY KEY,
+    account_id TEXT NOT NULL,
+    rating     TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+
 -- Les sessions du site : un jeton par navigateur connecté, révocable.
 CREATE TABLE IF NOT EXISTS sessions (
     token      TEXT PRIMARY KEY,
@@ -86,7 +95,8 @@ CREATE TABLE IF NOT EXISTS questions (
     cost            INTEGER NOT NULL,
     created_at      TEXT NOT NULL,
     claimed_at      TEXT,
-    done_at         TEXT
+    done_at         TEXT,
+    answer_message_id INTEGER
 );
 CREATE INDEX IF NOT EXISTS idx_questions_status ON questions (status, tier, created_at);
 
@@ -164,6 +174,9 @@ def init_db() -> None:
             conn.execute("ALTER TABLE devices ADD COLUMN account_id TEXT")
         if "tier" not in columns:
             conn.execute("ALTER TABLE devices ADD COLUMN tier TEXT DEFAULT 'rapide'")
+        q_columns = {r["name"] for r in conn.execute("PRAGMA table_info(questions)")}
+        if q_columns and "answer_message_id" not in q_columns:
+            conn.execute("ALTER TABLE questions ADD COLUMN answer_message_id INTEGER")
         # Les comptes nés « clé seule » précèdent la vraie authentification.
         acc_columns = {r["name"] for r in conn.execute("PRAGMA table_info(accounts)")}
         if "email" not in acc_columns:
@@ -172,6 +185,11 @@ def init_db() -> None:
         if "banned" not in acc_columns:
             conn.execute("ALTER TABLE accounts ADD COLUMN banned INTEGER NOT NULL DEFAULT 0")
             conn.execute("ALTER TABLE accounts ADD COLUMN last_refill TEXT")
+        if "learn_opt_in" not in acc_columns:
+            # Consentement à ce que les conversations aident à améliorer le
+            # modèle. Désactivé par défaut : on demande, on n'impose pas.
+            conn.execute("ALTER TABLE accounts ADD COLUMN learn_opt_in INTEGER"
+                         " NOT NULL DEFAULT 0")
         conn.execute(
             "CREATE UNIQUE INDEX IF NOT EXISTS idx_accounts_email"
             " ON accounts (email) WHERE email IS NOT NULL"
@@ -601,21 +619,24 @@ def delete_conversation(conversation_id: str, account_id: str) -> bool:
 
 
 def add_message(conversation_id: str, role: str, content: str,
-                device_name: str | None = None, tier: str | None = None) -> None:
+                device_name: str | None = None, tier: str | None = None) -> int:
     now = _now()
     with _connect() as conn:
-        conn.execute(
+        cur = conn.execute(
             "INSERT INTO messages (conversation_id, role, content, device_name, tier,"
             " created_at) VALUES (?, ?, ?, ?, ?, ?)",
             (conversation_id, role, content, device_name, tier, now),
         )
         conn.execute("UPDATE conversations SET updated_at = ? WHERE id = ?",
                      (now, conversation_id))
+        return cur.lastrowid
 
 
 def conversation_messages(conversation_id: str, limit: int | None = None) -> list[dict]:
-    query = ("SELECT role, content, device_name, tier, created_at FROM messages"
-             " WHERE conversation_id = ? ORDER BY id")
+    query = ("SELECT m.id, m.role, m.content, m.device_name, m.tier, m.created_at,"
+             " f.rating FROM messages m"
+             " LEFT JOIN feedback f ON f.message_id = m.id"
+             " WHERE m.conversation_id = ? ORDER BY m.id")
     with _connect() as conn:
         rows = conn.execute(query, (conversation_id,)).fetchall()
     messages = [dict(r) for r in rows]
@@ -626,6 +647,77 @@ def set_conversation_title(conversation_id: str, title: str) -> None:
     with _connect() as conn:
         conn.execute("UPDATE conversations SET title = ? WHERE id = ?",
                      (title, conversation_id))
+
+
+# --- Apprentissage : consentement, retour, corpus conversationnel -----------
+
+
+def set_consent(account_id: str, opt_in: bool) -> None:
+    with _connect() as conn:
+        conn.execute("UPDATE accounts SET learn_opt_in = ? WHERE account_id = ?",
+                     (1 if opt_in else 0, account_id))
+
+
+def message_owner(message_id: int) -> str | None:
+    """Le compte propriétaire du fil auquel appartient ce message, ou None."""
+    with _connect() as conn:
+        row = conn.execute(
+            "SELECT c.account_id FROM messages m"
+            " JOIN conversations c ON c.id = m.conversation_id WHERE m.id = ?",
+            (message_id,)).fetchone()
+    return row["account_id"] if row else None
+
+
+def set_feedback(message_id: int, account_id: str, rating: str) -> None:
+    with _connect() as conn:
+        conn.execute(
+            "INSERT INTO feedback (message_id, account_id, rating, created_at)"
+            " VALUES (?, ?, ?, ?)"
+            " ON CONFLICT(message_id) DO UPDATE SET rating = excluded.rating,"
+            " created_at = excluded.created_at",
+            (message_id, account_id, rating, _now()))
+
+
+def feedback_for_message(message_id: int) -> str | None:
+    with _connect() as conn:
+        row = conn.execute(
+            "SELECT rating FROM feedback WHERE message_id = ?", (message_id,)).fetchone()
+    return row["rating"] if row else None
+
+
+def learning_samples() -> list[dict]:
+    """Les échanges éligibles à l'entraînement, à travers les trois portes :
+    compte consentant, réponse notée 👍, données personnelles retirées.
+
+    Chaque échantillon = (question de l'utilisateur, réponse appréciée). C'est
+    de la donnée de préférence, pas de l'imitation aveugle : on n'apprend que
+    ce qu'un humain a validé.
+    """
+    from coordinator.scrub import scrub
+    with _connect() as conn:
+        rows = conn.execute(
+            "SELECT m.id AS mid, m.conversation_id AS conv, m.content AS answer,"
+            " m.tier AS tier,"
+            " (SELECT content FROM messages u WHERE u.conversation_id = m.conversation_id"
+            "  AND u.role = 'user' AND u.id < m.id ORDER BY u.id DESC LIMIT 1) AS prompt"
+            " FROM feedback f"
+            " JOIN messages m ON m.id = f.message_id"
+            " JOIN conversations c ON c.id = m.conversation_id"
+            " JOIN accounts a ON a.account_id = c.account_id"
+            " WHERE f.rating = 'up' AND a.learn_opt_in = 1 AND m.role = 'assistant'"
+            " ORDER BY m.id",
+        ).fetchall()
+    samples = []
+    for r in rows:
+        if not r["prompt"]:
+            continue  # une réponse sans question ne s'apprend pas
+        samples.append({
+            "source": "conversation",
+            "tier": r["tier"],
+            "prompt": scrub(r["prompt"]),
+            "answer": scrub(r["answer"]),
+        })
+    return samples
 
 
 def get_question(question_id: str) -> sqlite3.Row | None:
@@ -655,6 +747,12 @@ def claim_question(device_id: str, device_name: str,
         if cur.rowcount != 1:
             return None
         return conn.execute("SELECT * FROM questions WHERE id = ?", (row["id"],)).fetchone()
+
+
+def set_answer_message(question_id: str, message_id: int) -> None:
+    with _connect() as conn:
+        conn.execute("UPDATE questions SET answer_message_id = ? WHERE id = ?",
+                     (message_id, question_id))
 
 
 def answer_question(question_id: str, device_id: str, answer: str) -> bool:

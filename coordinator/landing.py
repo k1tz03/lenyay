@@ -131,6 +131,14 @@ button{font:inherit}
 .meta b{color:var(--verd-deep)}
 .chip{border:1px solid var(--line); border-radius:999px; padding:.05rem .45rem;
   background:var(--panel-2)}
+.fb{display:flex; align-items:center; gap:.3rem; margin-top:.45rem}
+.fb button{border:1px solid var(--line); background:var(--panel); border-radius:8px;
+  cursor:pointer; font-size:.9rem; line-height:1; padding:.25rem .45rem; filter:grayscale(1);
+  opacity:.7; transition:all .15s}
+.fb button:hover{opacity:1; filter:none; border-color:var(--verd)}
+.fb button[aria-pressed="true"]{opacity:1; filter:none; border-color:var(--verd);
+  background:var(--verd-pale)}
+.fbhint{font-size:.78rem; color:var(--soft); margin-left:.3rem}
 .dots span{display:inline-block; width:.4rem; height:.4rem; border-radius:50%;
   background:var(--verd); margin-right:.2rem; animation:hop 1.2s infinite}
 .dots span:nth-child(2){animation-delay:.15s} .dots span:nth-child(3){animation-delay:.3s}
@@ -179,6 +187,10 @@ button{font:inherit}
 .field input:focus{outline:2px solid var(--verd); outline-offset:-1px}
 .autherr{min-height:1.1rem; margin:.1rem 0 .3rem; font-size:.85rem; color:#B4541E}
 .authnote{margin:.7rem 0 0; font-size:.82rem; color:var(--soft)}
+.consent{display:flex; gap:.55rem; align-items:flex-start; font-size:.82rem;
+  color:var(--soft); margin:0 0 .9rem; cursor:pointer; line-height:1.4}
+.consent input{margin-top:.15rem; flex:none; accent-color:var(--verd-deep)}
+.consent:hover span{color:var(--ink)}
 .leave{margin-top:.55rem; width:100%; padding:.6rem; font-size:.88rem; border-radius:9px;
   border:1px solid var(--line); background:none; color:var(--soft); cursor:pointer}
 .leave:hover{color:#B4541E; border-color:#E0BFA8}
@@ -236,6 +248,8 @@ dialog#dlg{max-width:34rem}
   background:var(--panel-2); border:1px solid var(--line); border-radius:9px; font-size:.9rem}
 .devs span{color:var(--soft); font-size:.82rem}
 .empty{font-size:.86rem; color:var(--soft); margin:.6rem 0 0}
+.optrow{margin:.2rem 0 1rem; padding:.7rem .8rem; background:var(--panel-2);
+  border:1px solid var(--line); border-radius:9px}
 </style>
 </head>
 <body>
@@ -349,6 +363,10 @@ function authForm(mode){
       <input id="a-pass" type="password" autocomplete="${login ? "current-password" : "new-password"}"
         placeholder="${login ? "" : "8 caractères minimum"}"></label>
     <p class="autherr" id="a-err"></p>
+    ${login ? "" : `<label class="consent"><input type="checkbox" id="a-learn">
+      <span>Aider à améliorer Lenyay : mes conversations que je note 👍 pourront
+      servir à entraîner le modèle, après retrait de mes données personnelles.
+      Révocable à tout moment.</span></label>`}
     <button class="go" id="a-go">${login ? "Se connecter" : "Créer mon compte — 20 crédits offerts"}</button>
     ${login ? "" : `<p class="authnote">Pas de carte bancaire, pas de newsletter. L'e-mail ne
       sert qu'à retrouver ton compte.</p>`}`;
@@ -357,7 +375,8 @@ function authForm(mode){
   $("a-go").onclick = async () => {
     const email = $("a-email").value.trim(), password = $("a-pass").value;
     const body = login ? {email, password}
-      : {email, password, handle: ($("a-handle").value || "anonyme").trim()};
+      : {email, password, handle: ($("a-handle").value || "anonyme").trim(),
+         learn_opt_in: $("a-learn") ? $("a-learn").checked : false};
     const r = await fetch(login ? "/auth/login" : "/auth/register", {
       method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)});
     if(!r.ok){
@@ -465,7 +484,14 @@ async function openAccount(tab = "solde"){
       ? lines(depenses) + `<p class="empty">Aucun paiement : Lenyay ne facture pas
          d'argent. L'abonnement arrivera pour ceux qui préfèrent ne pas contribuer.</p>`
       : `<p class="empty">Aucune dépense pour l'instant.</p>`,
-    cle: `<p class="empty">Cette clé rattache une machine à ton compte : lance le worker
+    cle: `
+       <label class="consent optrow">
+         <input type="checkbox" id="opt-learn" ${me.learn_opt_in ? "checked" : ""}>
+         <span><b>Aider à améliorer Lenyay.</b> Mes conversations notées 👍 peuvent
+         servir à entraîner le modèle, données personnelles retirées. Révocable ici
+         à tout moment.</span>
+       </label>
+       <p class="empty">Cette clé rattache une machine à ton compte : lance le worker
        avec <code>LENYAY_ACCOUNT_KEY</code> et ses gains alimenteront ta bourse. Ce n'est
        pas un mot de passe — ton identité, c'est ton e-mail.</p>
        <div class="key">${account.key}</div>`,
@@ -478,6 +504,13 @@ async function openAccount(tab = "solde"){
   $("acct-tabs").querySelectorAll("button").forEach(b => b.onclick = () => show(b.dataset.t));
   $("do-logout").onclick = logout;
   show(tab);
+  // Délégué : le sélecteur de consentement n'existe que dans l'onglet « clé ».
+  $("acct-body").addEventListener("change", async e => {
+    if(e.target.id !== "opt-learn") return;
+    await api("/accounts/consent", {method:"POST",
+      body: JSON.stringify({opt_in: e.target.checked})});
+    account.learn_opt_in = e.target.checked; me.learn_opt_in = e.target.checked;
+  });
   $("dlg").showModal();
 }
 $("wallet").onclick = () => openAccount("solde");
@@ -525,7 +558,7 @@ async function openThread(id){
   const d = await (await api("/conversations/" + id)).json();
   $("turns").innerHTML = "";
   d.messages.forEach(m => addTurn(m.role === "user" ? "me" : "ai", m.content,
-    m.role === "assistant" ? m : null));
+    m.role === "assistant" ? {...m, message_id: m.id} : null));
   loadThreads(); scroll();
 }
 /* Les réponses code arrivent en blocs ``` : on les rend dans des <pre>
@@ -556,6 +589,28 @@ function renderRich(container, text){
     }
   }
 }
+function feedbackBar(messageId, current){
+  const bar = document.createElement("div");
+  bar.className = "fb";
+  const mk = (rating, glyph) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.textContent = glyph; b.dataset.r = rating;
+    b.setAttribute("aria-pressed", current === rating);
+    b.onclick = async () => {
+      const r = await api(`/messages/${messageId}/feedback`,
+        {method:"POST", body: JSON.stringify({rating})});
+      if(r.ok){
+        bar.querySelectorAll("button").forEach(o =>
+          o.setAttribute("aria-pressed", o.dataset.r === rating));
+        hint.textContent = rating === "up" ? "Merci — ça aide à améliorer Lenyay." : "Noté, merci.";
+      }
+    };
+    return b;
+  };
+  const hint = document.createElement("span"); hint.className = "fbhint";
+  bar.append(mk("up", "👍"), mk("down", "👎"), hint);
+  return bar;
+}
 function addTurn(kind, text, meta){
   const el = document.createElement("div");
   el.className = "turn " + kind;
@@ -570,6 +625,10 @@ function addTurn(kind, text, meta){
     m.innerHTML = `Répondu par <b>${esc(meta.device_name || "une machine")}</b>` +
       (meta.tier ? ` <span class="chip">${esc(meta.tier)}</span>` : "");
     el.querySelector(".body").append(m);
+    // On ne peut noter que ses propres messages IA identifiés.
+    if(meta.message_id){
+      el.querySelector(".body").append(feedbackBar(meta.message_id, meta.rating));
+    }
   }
   $("turns").append(el); scroll();
   return el;
@@ -614,7 +673,7 @@ async function send(text){
       }
       if(s.status === "done"){
         clearInterval(polling); pending.remove();
-        addTurn("ai", s.answer, {device_name:s.device_name, tier});
+        addTurn("ai", s.answer, {device_name:s.device_name, tier, message_id:s.message_id});
         $("send").disabled = false;
       }
       if(tries > 120){

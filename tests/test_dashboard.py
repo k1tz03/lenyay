@@ -89,7 +89,7 @@ class TestLanding:
         client, _ = client_and_answers
         style = client.get("/").text.split("<style>")[1].split("</style>")[0]
         for rule in (".box{", ".box textarea{", ".composer{", ".picker button",
-                     ".codebox", ".thread{", ".wallet{"):
+                     ".codebox", ".thread{", ".wallet{", ".fb button", ".consent"):
             assert rule in style, rule
         assert style.count("{") == style.count("}")
 

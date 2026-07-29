@@ -113,6 +113,9 @@ def main() -> None:
                         help="garder les chemins de raisonnement distincts d'un même problème")
     parser.add_argument("--max-per-task", type=int, default=config.ARCHIVE_MAX_PER_TASK,
                         help="traces retenues au maximum par problème")
+    parser.add_argument("--with-conversations", action="store_true",
+                        help="ajouter les échanges consentis et appréciés (👍), "
+                             "données personnelles retirées")
     args = parser.parse_args()
 
     if hasattr(sys.stdout, "reconfigure"):
@@ -132,19 +135,41 @@ def main() -> None:
     if not kept:
         sys.exit("Aucune trace exportable après filtrage — dataset vide, export refusé.")
 
+    # Le corpus conversationnel — la source « apprend des discussions », mais
+    # UNIQUEMENT ce qui a passé les trois portes (consentement, 👍, nettoyage).
+    # On le marque à part : c'est de la préférence humaine, pas du vérifié.
+    conversations = []
+    if args.with_conversations:
+        from coordinator import db
+        db.init_db()
+        conversations = db.learning_samples()
+
     args.out.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now().strftime("%Y-%m-%d")
-    out_path = args.out / f"dataset-{stamp}-{len(kept)}.jsonl"
+    total_out = len(kept) + len(conversations)
+    out_path = args.out / f"dataset-{stamp}-{total_out}.jsonl"
     with out_path.open("w", encoding="utf-8", newline="\n") as f:
         for record in kept:
             f.write(json.dumps(to_chat(record), ensure_ascii=False) + "\n")
+        for sample in conversations:
+            f.write(json.dumps({
+                "messages": [
+                    {"role": "user", "content": sample["prompt"]},
+                    {"role": "assistant", "content": sample["answer"]},
+                ],
+                "source": "conversation",
+            }, ensure_ascii=False) + "\n")
 
     print(f"Traces acceptées lues     : {stats['total']}")
     print(f"  mock écartées           : {stats['mock']}")
     print(f"  contamination éval      : {stats['eval_overlap']}")
     print(f"  doublons écartés        : {stats['duplicates']}")
     print(f"  au-delà du quota/tâche  : {stats['over_task_quota']}")
-    print(f"Dataset exporté           : {stats['kept']} exemples (format chat)")
+    print(f"Traces vérifiées gardées  : {stats['kept']} exemples")
+    if args.with_conversations:
+        print(f"Échanges consentis (👍)    : {len(conversations)} exemples "
+              "(données personnelles retirées)")
+    print(f"Dataset exporté           : {total_out} exemples (format chat)")
     print(f"Fichier : {out_path}")
     print(f"sha256  : {sha256_file(out_path)}")
 

@@ -29,9 +29,11 @@ from common.schemas import (  # noqa: F401 — l'API expose ces modèles
     AnswerSubmission,
     AskRequest,
     AskResponse,
+    ConsentRequest,
     Conversation,
     ConversationList,
     ConversationThread,
+    FeedbackRequest,
     MessageRequest,
     QuestionState,
     ServedQuestion,
@@ -348,6 +350,8 @@ def auth_register(payload: AuthRegisterRequest, request: Request, response: Resp
     if created is None:
         raise HTTPException(status_code=409, detail="Un compte existe déjà avec cet e-mail")
     account_id, api_key = created
+    if payload.learn_opt_in:
+        db.set_consent(account_id, True)
     _open_session(response, account_id)
     logger.info("Nouveau compte : %s (%s…)", handle, account_id[:8])
     return AccountResponse(account_id=account_id, account_key=api_key,
@@ -443,6 +447,25 @@ def create_account(payload: AccountRequest, request: Request):
                            handle=handle, credits=config.WELCOME_CREDITS)
 
 
+@app.post("/accounts/consent")
+def account_consent(payload: ConsentRequest, account=Depends(require_account)):
+    """Activer ou révoquer l'aide à l'amélioration du modèle. Révocable à tout
+    moment : c'est la première des trois portes du corpus conversationnel."""
+    db.set_consent(account["account_id"], payload.opt_in)
+    return {"learn_opt_in": payload.opt_in}
+
+
+@app.post("/messages/{message_id}/feedback")
+def message_feedback(message_id: int, payload: FeedbackRequest,
+                     account=Depends(require_account)):
+    """Noter une réponse (👍/👎). Le 👍 est ce qui autorise, plus tard, qu'un
+    échange consenti serve à l'entraînement — un humain a validé."""
+    if db.message_owner(message_id) != account["account_id"]:
+        raise HTTPException(status_code=404, detail="Message introuvable")
+    db.set_feedback(message_id, account["account_id"], payload.rating)
+    return {"rating": payload.rating}
+
+
 @app.get("/accounts/ledger")
 def account_ledger(account=Depends(require_account)):
     """Le relevé du compte : d'où viennent les crédits, où ils sont partis."""
@@ -464,6 +487,7 @@ def account_state(account=Depends(require_account)):
         questions=db.recent_questions(account["account_id"]),
         email=account["email"] if "email" in keys else None,
         account_key=account["api_key"],
+        learn_opt_in=bool(account["learn_opt_in"]) if "learn_opt_in" in keys else False,
     )
 
 
@@ -577,8 +601,11 @@ def question_state(question_id: str):
     row = db.get_question(question_id)
     if row is None:
         raise HTTPException(status_code=404, detail="Question inconnue")
-    return QuestionState(id=row["id"], status=row["status"], prompt=row["prompt"],
-                         answer=row["answer"], device_name=row["device_name"])
+    keys = row.keys()
+    return QuestionState(
+        id=row["id"], status=row["status"], prompt=row["prompt"],
+        answer=row["answer"], device_name=row["device_name"],
+        message_id=row["answer_message_id"] if "answer_message_id" in keys else None)
 
 
 # --- Servir une question (côté machine) ------------------------------------
@@ -619,8 +646,9 @@ def submit_answer(question_id: str, payload: AnswerSubmission,
             detail="Cette question ne t'a pas été confiée, ou a déjà été traitée.",
         )
     if row is not None and row["conversation_id"]:
-        db.add_message(row["conversation_id"], "assistant", answer,
-                       device_name=device["device_name"], tier=row["tier"])
+        mid = db.add_message(row["conversation_id"], "assistant", answer,
+                             device_name=device["device_name"], tier=row["tier"])
+        db.set_answer_message(question_id, mid)
     tier = config.TIERS.get(row["tier"] if row else config.DEFAULT_TIER,
                             config.TIERS[config.DEFAULT_TIER])
     reward = tier["reward"]

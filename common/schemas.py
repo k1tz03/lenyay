@@ -108,6 +108,17 @@ class AuthRegisterRequest(BaseModel):
     email: str = Field(pattern=_EMAIL, max_length=254)
     password: str = Field(min_length=8, max_length=128)
     handle: str = Field(default="anonyme", max_length=40)
+    # Aider à améliorer Lenyay avec ses conversations (facultatif, désactivé
+    # par défaut).
+    learn_opt_in: bool = False
+
+
+class ConsentRequest(BaseModel):
+    opt_in: bool
+
+
+class FeedbackRequest(BaseModel):
+    rating: str = Field(pattern=r"^(up|down)$")
 
 
 class AuthLoginRequest(BaseModel):
@@ -135,6 +146,7 @@ class AccountState(BaseModel):
     email: str | None = None
     # La clé n'identifie plus une personne : elle sert à rattacher des machines.
     account_key: str = ""
+    learn_opt_in: bool = False
 
 
 class AskRequest(BaseModel):
@@ -154,6 +166,8 @@ class QuestionState(BaseModel):
     prompt: str
     answer: str | None = None
     device_name: str | None = None
+    # L'id du message IA, pour pouvoir le noter (👍/👎).
+    message_id: int | None = None
 
 
 class ServedQuestion(BaseModel):
