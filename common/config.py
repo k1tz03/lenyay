@@ -62,9 +62,17 @@ STATS_RATE_LIMIT = int(_env("STATS_RATE_LIMIT", "60"))
 # Preuve de travail : /results exige le bail signé émis par /work.
 REQUIRE_LEASE = _env("REQUIRE_LEASE", "1") == "1"
 # Durée de vie d'un bail (l'inférence CPU d'un lot peut être longue).
-LEASE_TTL = int(_env("LEASE_TTL", "21600"))  # 6 h
-# Traces versées au dataset par tâche, tous appareils confondus (anti-flooding).
+LEASE_TTL = int(_env("LEASE_TTL", "7200"))  # 2 h
+# Traces retenues par tâche À L'EXPORT (la sélection se fait hors ligne, avec
+# tout le corpus en main : plus de créneau pris définitivement au vol).
 ARCHIVE_MAX_PER_TASK = int(_env("ARCHIVE_MAX_PER_TASK", "3"))
+# Soumissions par appareil et par jour, ACCEPTÉES OU NON : sans ça, un client
+# qui soumet exprès des réponses fausses écrit sans limite sur le disque.
+DAILY_SUBMISSION_CAP = int(_env("DAILY_SUBMISSION_CAP", "6000"))
+# Tentatives comptées par le serveur pour un couple (appareil, tâche).
+MAX_ATTEMPTS_PER_TASK = int(_env("MAX_ATTEMPTS_PER_TASK", "8"))
+# Appareils distincts en échec avant qu'une tâche soit déclarée « dure ».
+HARD_MIN_DEVICES = int(_env("HARD_MIN_DEVICES", "2"))
 
 # --- Inférence -------------------------------------------------------------
 TEMPERATURE = float(_env("TEMPERATURE", "0.8"))

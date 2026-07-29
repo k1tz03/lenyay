@@ -59,13 +59,20 @@ def filter_records(
     records: list[dict],
     eval_prompts_raw: set[str],
     all_traces: bool = False,
+    max_per_task: int | None = None,
 ) -> tuple[list[dict], dict]:
-    """Applique les règles d'export ; renvoie (gardées, stats)."""
+    """Applique les règles d'export ; renvoie (gardées, stats).
+
+    Le quota par tâche s'applique ICI, hors ligne, avec tout le corpus sous
+    les yeux : personne ne s'approprie définitivement une tâche en étant
+    simplement le premier à répondre.
+    """
     eval_prompts = {normalize_prompt(p) for p in eval_prompts_raw}
     stats = {"total": len(records), "mock": 0, "eval_overlap": 0,
-             "duplicates": 0, "kept": 0}
+             "duplicates": 0, "over_task_quota": 0, "kept": 0}
     kept: list[dict] = []
     seen: set = set()
+    per_task: dict[str, int] = {}
     for record in records:
         if is_mock(record):
             stats["mock"] += 1
@@ -77,7 +84,11 @@ def filter_records(
         if key in seen:
             stats["duplicates"] += 1
             continue
+        if max_per_task and per_task.get(record["task_id"], 0) >= max_per_task:
+            stats["over_task_quota"] += 1
+            continue
         seen.add(key)
+        per_task[record["task_id"]] = per_task.get(record["task_id"], 0) + 1
         kept.append(record)
     stats["kept"] = len(kept)
     return kept, stats
@@ -100,6 +111,8 @@ def main() -> None:
     parser.add_argument("--out", type=Path, default=DEFAULT_OUT_DIR)
     parser.add_argument("--all-traces", action="store_true",
                         help="garder les chemins de raisonnement distincts d'un même problème")
+    parser.add_argument("--max-per-task", type=int, default=config.ARCHIVE_MAX_PER_TASK,
+                        help="traces retenues au maximum par problème")
     args = parser.parse_args()
 
     if hasattr(sys.stdout, "reconfigure"):
@@ -114,7 +127,8 @@ def main() -> None:
         with args.eval_set.open(encoding="utf-8") as f:
             eval_prompts = {json.loads(l)["prompt"] for l in f if l.strip()}
 
-    kept, stats = filter_records(records, eval_prompts, all_traces=args.all_traces)
+    kept, stats = filter_records(records, eval_prompts, all_traces=args.all_traces,
+                                 max_per_task=args.max_per_task)
     if not kept:
         sys.exit("Aucune trace exportable après filtrage — dataset vide, export refusé.")
 
@@ -129,6 +143,7 @@ def main() -> None:
     print(f"  mock écartées           : {stats['mock']}")
     print(f"  contamination éval      : {stats['eval_overlap']}")
     print(f"  doublons écartés        : {stats['duplicates']}")
+    print(f"  au-delà du quota/tâche  : {stats['over_task_quota']}")
     print(f"Dataset exporté           : {stats['kept']} exemples (format chat)")
     print(f"Fichier : {out_path}")
     print(f"sha256  : {sha256_file(out_path)}")

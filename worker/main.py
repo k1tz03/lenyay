@@ -75,16 +75,30 @@ def _submit_and_log(client, submissions, stats) -> list:
 
 
 def _ensure_registered_with_retry(client, device_file) -> dict:
-    """Comme _ensure_registered, mais survit à un coordinateur injoignable."""
+    """Comme _ensure_registered, mais survit à un coordinateur injoignable
+    ET à un refus temporaire (429 quand trop d'inscriptions viennent de la
+    même adresse : réseau d'entreprise, 4G partagée, jour de lancement…)."""
+    delay = 5
     while True:
         try:
             return _ensure_registered(client, device_file)
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == 429:
+                log.warning(
+                    "Le coordinateur limite les inscriptions depuis ton réseau — "
+                    "nouvel essai dans %d s (c'est temporaire, laisse tourner)", delay)
+            else:
+                log.warning("Le coordinateur a répondu %d — nouvel essai dans %d s",
+                            exc.response.status_code, delay)
+            time.sleep(delay)
+            delay = min(delay * 2, 300)
         except httpx.RequestError as exc:
             log.warning(
-                "Coordinateur injoignable (%s) — nouvel essai dans 5 s",
-                type(exc).__name__,
+                "Coordinateur injoignable (%s) — nouvel essai dans %d s",
+                type(exc).__name__, delay,
             )
-            time.sleep(5)
+            time.sleep(delay)
+            delay = min(delay * 2, 300)
 
 
 def run() -> None:
@@ -164,6 +178,16 @@ def run() -> None:
                     log.warning("Clé API refusée — ré-enregistrement de l'appareil")
                     config.DEVICE_FILE.unlink(missing_ok=True)
                     identity = _ensure_registered_with_retry(client, config.DEVICE_FILE)
+                elif exc.response.status_code == 429:
+                    # Quota du jour atteint : inutile de regénérer un lot
+                    # complet toutes les 5 s jusqu'à minuit.
+                    try:
+                        reason = exc.response.json().get("detail", "")
+                    except Exception:
+                        reason = ""
+                    log.info("Pause : %s", reason or "quota atteint pour aujourd'hui")
+                    log.info("Nouvelle tentative dans 15 minutes.")
+                    time.sleep(900)
                 else:
                     log.warning(
                         "Erreur HTTP %d du coordinateur — nouvel essai dans 5 s",

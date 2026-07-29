@@ -148,11 +148,11 @@ class TestBail:
 # --- Protection du dataset -------------------------------------------------
 
 
-class TestArchiveDedup:
-    def test_archive_bornee_par_tache(self, ctx, monkeypatch):
+class TestArchiveCorpusBrut:
+    def test_toutes_les_traces_correctes_entrent_au_corpus(self, ctx):
+        """Le corpus brut accueille tout ; le tri (quota par tâche, diversité)
+        se fait à l'export — arriver le premier ne réserve aucun créneau."""
         client, answers, tmp_path = ctx
-        monkeypatch.setattr("common.config.ARCHIVE_MAX_PER_TASK", 2)
-        # trois appareils résolvent la même tâche : 2 traces archivées, pas 3.
         for i in range(3):
             headers = _device(client, f"poste-{i}")
             tasks = _work(client, headers, n=8)
@@ -160,7 +160,7 @@ class TestArchiveDedup:
             _submit(client, headers, "t-00", TRACE.format(answers["t-00"]), target["lease"])
         lines = sum(1 for f in (tmp_path / "accepted").glob("*.jsonl")
                     for _ in f.open(encoding="utf-8"))
-        assert lines == 2
+        assert lines == 3
 
 
 # --- Plafond quotidien : plus de tâches brûlées ----------------------------

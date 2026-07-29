@@ -10,8 +10,14 @@ prouve seulement que le coordinateur a bien confié CETTE tâche à CET appareil
 """
 
 import hmac
+import re
 import time
 from hashlib import sha256
+
+# Le bail vient du réseau : on n'accepte que la forme exacte attendue avant
+# d'en faire quoi que ce soit (int() accepte espaces, underscores et chiffres
+# unicode ; compare_digest refuse les str non-ASCII en levant TypeError).
+_LEASE_RE = re.compile(r"^([0-9]{1,12})\.([0-9a-f]{32})$")
 
 
 def _digest(secret: str, device_id: str, task_id: str, expiry: int) -> str:
@@ -25,13 +31,13 @@ def issue(secret: str, device_id: str, task_id: str, ttl_seconds: int) -> str:
 
 
 def verify(secret: str, device_id: str, task_id: str, lease: str) -> bool:
-    if not lease or "." not in lease:
+    match = _LEASE_RE.match(lease or "")
+    if match is None:
         return False
-    raw_expiry, _, signature = lease.partition(".")
-    try:
-        expiry = int(raw_expiry)
-    except ValueError:
-        return False
+    expiry = int(match.group(1))
     if expiry < time.time():
         return False
-    return hmac.compare_digest(signature, _digest(secret, device_id, task_id, expiry))
+    # Comparaison sur des octets : jamais de TypeError, temps constant.
+    return hmac.compare_digest(
+        match.group(2).encode(), _digest(secret, device_id, task_id, expiry).encode()
+    )

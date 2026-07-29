@@ -91,32 +91,50 @@ def init_db() -> None:
         conn.executescript(_SCHEMA)
 
 
+_secret_cache: str | None = None
+
+
 def server_secret() -> str:
     """Secret de signature des bails, créé au premier démarrage puis persisté
     (un redémarrage n'invalide pas les bails que des workers ont en main)."""
+    global _secret_cache
+    if _secret_cache is not None:
+        return _secret_cache
     with _connect() as conn:
         row = conn.execute(
             "SELECT value FROM secrets WHERE name = 'lease_key'").fetchone()
-        if row is not None:
-            return row["value"]
-        secret = secrets.token_hex(32)
-        conn.execute(
-            "INSERT OR IGNORE INTO secrets (name, value) VALUES ('lease_key', ?)",
-            (secret,),
-        )
-        row = conn.execute(
-            "SELECT value FROM secrets WHERE name = 'lease_key'").fetchone()
-    return row["value"]
+        if row is None:
+            conn.execute(
+                "INSERT OR IGNORE INTO secrets (name, value) VALUES ('lease_key', ?)",
+                (secrets.token_hex(32),),
+            )
+            row = conn.execute(
+                "SELECT value FROM secrets WHERE name = 'lease_key'").fetchone()
+    _secret_cache = row["value"]
+    return _secret_cache
 
 
-def archived_count_for_task(task_id: str) -> int:
-    """Nombre d'appareils distincts ayant fait accepter cette tâche — donc le
-    nombre de traces déjà versées au dataset pour elle."""
+def attempts_for_task(device_id: str, task_id: str) -> int:
+    """Tentatives déjà enregistrées pour ce couple — compté par le serveur,
+    jamais déclaré par le client (le champ `attempt` sert de pondération à
+    l'entraînement : il ne peut pas être laissé à la main du contributeur)."""
     with _connect() as conn:
         row = conn.execute(
-            "SELECT COUNT(DISTINCT device_id) AS n FROM rollouts"
-            " WHERE task_id = ? AND accepted = 1",
-            (task_id,),
+            "SELECT COUNT(*) AS n FROM rollouts WHERE device_id = ? AND task_id = ?",
+            (device_id, task_id),
+        ).fetchone()
+    return row["n"]
+
+
+def submissions_today(device_id: str) -> int:
+    """Toutes les soumissions du jour (acceptées OU refusées) : c'est ce
+    compteur qui borne l'écriture disque, pas seulement les réussites."""
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    with _connect() as conn:
+        row = conn.execute(
+            "SELECT COUNT(*) AS n FROM rollouts WHERE device_id = ?"
+            " AND created_at LIKE ?",
+            (device_id, f"{today}%"),
         ).fetchone()
     return row["n"]
 
@@ -191,11 +209,14 @@ def accepted_today(device_id: str) -> int:
 
 
 def hard_task_ids() -> set[str]:
-    """Tâches déjà tentées mais jamais résolues par personne — cibles du mode
-    chasse : c'est là que naissent les traces « durement gagnées »."""
+    """Tâches jamais résolues et ratées par plusieurs appareils DISTINCTS —
+    cibles du mode chasse. Le seuil évite qu'un seul client oriente tout
+    l'essaim en soumettant des réponses fausses en rafale."""
     with _connect() as conn:
         rows = conn.execute(
-            "SELECT task_id FROM rollouts GROUP BY task_id HAVING MAX(accepted) = 0"
+            "SELECT task_id FROM rollouts GROUP BY task_id"
+            " HAVING MAX(accepted) = 0 AND COUNT(DISTINCT device_id) >= ?",
+            (config.HARD_MIN_DEVICES,),
         ).fetchall()
     return {r["task_id"] for r in rows}
 

@@ -49,7 +49,8 @@ class RegisterResponse(BaseModel):
 
 class ResultSubmission(BaseModel):
     task_id: str = Field(max_length=128)
-    trace: str = Field(max_length=32_000)
+    # 8 k : une trace GSM8K fait 1-2 k ; au-delà c'est du remplissage.
+    trace: str = Field(max_length=8_000)
     attempt: int = Field(default=1, ge=1, le=32)
     lease: str = Field(default="", max_length=128)
 

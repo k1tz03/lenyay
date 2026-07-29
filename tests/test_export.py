@@ -66,7 +66,8 @@ class TestFiltrage:
         kept, stats = filter_records(records, eval_prompts_raw=eval_prompts)
         assert [r["task_id"] for r in kept] == ["t1", "t4"]
         assert stats == {
-            "total": 5, "mock": 1, "eval_overlap": 1, "duplicates": 1, "kept": 2,
+            "total": 5, "mock": 1, "eval_overlap": 1, "duplicates": 1,
+            "over_task_quota": 0, "kept": 2,
         }
 
     def test_all_traces_garde_les_variantes_distinctes(self):
