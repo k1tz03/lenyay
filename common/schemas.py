@@ -11,10 +11,15 @@ from pydantic import BaseModel, Field
 
 
 class Task(BaseModel):
-    """Ce que le worker reçoit : le problème, rien d'autre."""
+    """Ce que le worker reçoit : le problème et son bail, rien d'autre.
+
+    Le bail (HMAC signé par le coordinateur) devra être renvoyé avec le
+    résultat : c'est la preuve que la tâche a bien été distribuée.
+    """
 
     task_id: str
     prompt: str
+    lease: str = ""
 
 
 class TaskWithAnswer(Task):
@@ -46,6 +51,7 @@ class ResultSubmission(BaseModel):
     task_id: str = Field(max_length=128)
     trace: str = Field(max_length=32_000)
     attempt: int = Field(default=1, ge=1, le=32)
+    lease: str = Field(default="", max_length=128)
 
 
 class ResultsPayload(BaseModel):

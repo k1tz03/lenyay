@@ -21,6 +21,11 @@ CREATE TABLE IF NOT EXISTS devices (
     last_seen   TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS secrets (
+    name  TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS credits (
     device_id TEXT PRIMARY KEY REFERENCES devices(device_id),
     credits   INTEGER NOT NULL DEFAULT 0
@@ -84,6 +89,36 @@ def init_db() -> None:
     _adopt_legacy_db()
     with _connect() as conn:
         conn.executescript(_SCHEMA)
+
+
+def server_secret() -> str:
+    """Secret de signature des bails, créé au premier démarrage puis persisté
+    (un redémarrage n'invalide pas les bails que des workers ont en main)."""
+    with _connect() as conn:
+        row = conn.execute(
+            "SELECT value FROM secrets WHERE name = 'lease_key'").fetchone()
+        if row is not None:
+            return row["value"]
+        secret = secrets.token_hex(32)
+        conn.execute(
+            "INSERT OR IGNORE INTO secrets (name, value) VALUES ('lease_key', ?)",
+            (secret,),
+        )
+        row = conn.execute(
+            "SELECT value FROM secrets WHERE name = 'lease_key'").fetchone()
+    return row["value"]
+
+
+def archived_count_for_task(task_id: str) -> int:
+    """Nombre d'appareils distincts ayant fait accepter cette tâche — donc le
+    nombre de traces déjà versées au dataset pour elle."""
+    with _connect() as conn:
+        row = conn.execute(
+            "SELECT COUNT(DISTINCT device_id) AS n FROM rollouts"
+            " WHERE task_id = ? AND accepted = 1",
+            (task_id,),
+        ).fetchone()
+    return row["n"]
 
 
 def register_device(device_name: str) -> tuple[str, str]:

@@ -131,7 +131,8 @@ def run() -> None:
                     trace = generator.generate(task)
                     stats["generated"] += 1
                     submissions.append(
-                        ResultSubmission(task_id=task.task_id, trace=trace, attempt=1)
+                        ResultSubmission(task_id=task.task_id, trace=trace,
+                                         attempt=1, lease=task.lease)
                     )
                 rejected_ids = _submit_and_log(client, submissions, stats)
 
@@ -145,7 +146,9 @@ def run() -> None:
                         trace = generator.generate(task_by_id[task_id])
                         stats["generated"] += 1
                         retries.append(
-                            ResultSubmission(task_id=task_id, trace=trace, attempt=attempt)
+                            ResultSubmission(task_id=task_id, trace=trace,
+                                             attempt=attempt,
+                                             lease=task_by_id[task_id].lease)
                         )
                     log.info("Tentative %d pour %d tâche(s)", attempt, len(retries))
                     rejected_ids = _submit_and_log(client, retries, stats)

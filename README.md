@@ -28,7 +28,10 @@ Voir [ROADMAP.md](ROADMAP.md) pour la vision complète et les décisions actées
 ```
 
 Le worker ne reçoit **jamais** la réponse attendue : il ne peut être crédité
-qu'en résolvant réellement le problème. Une tâche déjà résolue par un appareil
+qu'en résolvant réellement le problème. Chaque tâche distribuée part avec un
+**bail signé** (HMAC lié à l'appareil) que la soumission doit renvoyer :
+impossible de deviner des `task_id` et de poster des réponses connues sans
+être passé par `/work`. Une tâche déjà résolue par un appareil
 ne lui est pas re-servie et ne rapporte plus de crédit : catalogue épuisé →
 le worker se met en pause. Dashboard sur `http://127.0.0.1:8000/`.
 
@@ -103,11 +106,25 @@ n'est pas définie, avec un avertissement de dépréciation.
 | `LENYAY_MODEL_REPO` | `Qwen/Qwen2.5-1.5B-Instruct-GGUF` | Repo Hugging Face du modèle |
 | `LENYAY_MODEL_PATTERN` | `q4_k_m` | Motif du fichier GGUF à choisir |
 | `LENYAY_MOCK_ACCURACY` | `0.3` | Taux de bonnes réponses du mock |
+| `LENYAY_HUNT` | `0` | `1` = servir en priorité les tâches jamais résolues (mode chasse) |
+| `LENYAY_RATE_LIMIT` | `120` | Requêtes authentifiées max par appareil et par minute |
+| `LENYAY_REGISTER_LIMIT` | `20` | Enregistrements max par IP et par heure |
+| `LENYAY_DAILY_CREDIT_CAP` | `2000` | Crédits max par appareil et par jour UTC (0 = sans plafond) |
+| `LENYAY_MIN_TRACE_CHARS` | `40` | Longueur minimale d'une trace correcte pour être créditée |
 | `LENYAY_DB` | `data/lenyay.db` | Base SQLite du coordinateur |
 | `LENYAY_TASKS` | `data/tasks.jsonl` | Catalogue de tâches figé |
 | `LENYAY_ACCEPTED_DIR` | `data/accepted` | Archive des traces acceptées |
 | `LENYAY_DEVICE_FILE` | `.lenyay_device.json` | Identité persistée du worker |
 | `LENYAY_MODELS_DIR` | `models` | Dossier des GGUF téléchargés |
+| `LENYAY_REQUIRE_LEASE` | `1` | Exiger le bail signé sur `/results` |
+| `LENYAY_LEASE_TTL` | `21600` | Durée de vie d'un bail (secondes) |
+| `LENYAY_RATE_LIMIT` | `120` | Requêtes/min par appareil |
+| `LENYAY_REGISTER_LIMIT` | `20` | Enregistrements/h par IP |
+| `LENYAY_STATS_RATE_LIMIT` | `60` | Appels `/stats`/min par IP |
+| `LENYAY_DAILY_CREDIT_CAP` | `2000` | Crédits/jour par appareil (0 = illimité) |
+| `LENYAY_ARCHIVE_MAX_PER_TASK` | `3` | Traces versées au dataset par tâche |
+| `LENYAY_MIN_TRACE_CHARS` | `40` | Longueur minimale d'une trace créditée |
+| `LENYAY_HUNT` | `0` | `1` = servir en priorité les tâches jamais résolues |
 
 ## Tests
 

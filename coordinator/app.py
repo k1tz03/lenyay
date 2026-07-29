@@ -25,11 +25,21 @@ from common.schemas import (
     Verdict,
     WorkBatch,
 )
-from coordinator import db, limits, tasks
+from coordinator import db, leases, limits, tasks
 from coordinator.verifier import verify
 
 logger = logging.getLogger("lenyay.coordinator")
 _archive_lock = threading.Lock()
+# Un verrou par appareil : les routes sont synchrones, donc exécutées dans un
+# pool de threads — sans lui, deux soumissions concurrentes du même appareil
+# liraient le même compteur de crédits et franchiraient le plafond.
+_device_locks: dict[str, threading.Lock] = {}
+_device_locks_guard = threading.Lock()
+
+
+def _lock_for(device_id: str) -> threading.Lock:
+    with _device_locks_guard:
+        return _device_locks.setdefault(device_id, threading.Lock())
 
 
 @asynccontextmanager
@@ -101,25 +111,59 @@ def get_work(
     n: int = Query(default=config.BATCH_SIZE, ge=1, le=32),
     device=Depends(require_device),
 ):
-    solved = db.accepted_task_ids(device["device_id"])
+    device_id = device["device_id"]
+    solved = db.accepted_task_ids(device_id)
     hard = db.hard_task_ids() if config.HUNT_MODE else None
     batch = tasks.sample(n, exclude=solved, hard_first=hard)
+    secret = db.server_secret()
     # Task (sans expected_answer) : la réponse attendue ne sort JAMAIS d'ici.
-    return WorkBatch(tasks=[Task(task_id=t.task_id, prompt=t.prompt) for t in batch])
+    # Chaque tâche part avec son bail signé, à renvoyer avec le résultat.
+    return WorkBatch(tasks=[
+        Task(
+            task_id=t.task_id,
+            prompt=t.prompt,
+            lease=leases.issue(secret, device_id, t.task_id, config.LEASE_TTL),
+        )
+        for t in batch
+    ])
 
 
 @app.post("/results", response_model=SubmitResponse)
 def submit_results(payload: ResultsPayload, device=Depends(require_device)):
     device_id = device["device_id"]
+    with _lock_for(device_id):
+        return _submit_locked(payload, device, device_id)
+
+
+def _submit_locked(payload: ResultsPayload, device, device_id: str) -> SubmitResponse:
     # Une tâche déjà acceptée par cet appareil ne rapporte plus rien : pas de
     # nouveau crédit, pas de doublon dans le dataset (le rollout reste journalisé).
     already_accepted = db.accepted_task_ids(device_id)
     credited_today = db.accepted_today(device_id)
+    if config.DAILY_CREDIT_CAP and credited_today >= config.DAILY_CREDIT_CAP:
+        # Plafond atteint : on refuse AVANT de consommer les tâches, sinon
+        # elles seraient marquées résolues sans jamais être créditées.
+        raise HTTPException(
+            status_code=429,
+            detail="Quota quotidien atteint — reprends demain (réinitialisation à 00:00 UTC)",
+        )
+    secret = db.server_secret()
     verdicts: list[Verdict] = []
     earned = 0
     for result in payload.results:
         task = tasks.get(result.task_id)
         if task is None:
+            verdicts.append(
+                Verdict(task_id=result.task_id, accepted=False,
+                        extracted_answer=None, attempt=result.attempt)
+            )
+            continue
+        if config.REQUIRE_LEASE and not leases.verify(
+            secret, device_id, result.task_id, result.lease
+        ):
+            # Preuve de travail manquante : la tâche n'a pas été distribuée à
+            # cet appareil. Rien n'est journalisé, rien n'est crédité.
+            logger.info("Bail invalide : %s sur %s", device["device_name"], result.task_id)
             verdicts.append(
                 Verdict(task_id=result.task_id, accepted=False,
                         extracted_answer=None, attempt=result.attempt)
@@ -136,14 +180,14 @@ def submit_results(payload: ResultsPayload, device=Depends(require_device)):
             device_id, result.task_id, result.attempt, result.trace, extracted, accepted
         )
         if accepted and result.task_id not in already_accepted:
-            if config.DAILY_CREDIT_CAP and credited_today + earned >= config.DAILY_CREDIT_CAP:
-                # Plafond quotidien : le verdict reste honnête, mais ni crédit
-                # ni entrée au dataset (anti-farming).
-                logger.info("Plafond quotidien atteint pour %s", device["device_name"])
-            else:
-                earned += 1
+            earned += 1
+            already_accepted.add(result.task_id)
+            # Le dataset ne prend qu'un nombre borné de traces par tâche :
+            # un essaim hostile ne peut pas le noyer sous les copies.
+            if db.archived_count_for_task(result.task_id) <= config.ARCHIVE_MAX_PER_TASK:
                 _archive_accepted(device_id, task, result.trace, extracted, result.attempt)
-                already_accepted.add(result.task_id)
+            if config.DAILY_CREDIT_CAP and credited_today + earned >= config.DAILY_CREDIT_CAP:
+                logger.info("Plafond quotidien atteint pour %s", device["device_name"])
         verdicts.append(
             Verdict(task_id=result.task_id, accepted=accepted,
                     extracted_answer=extracted, attempt=result.attempt)

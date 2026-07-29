@@ -126,13 +126,16 @@ class TestPlafondQuotidien:
     def test_credits_plafonnes_par_jour(self, client_and_answers):
         client, answers = client_and_answers
         headers = _register(client)
+        tasks = client.get("/work", params={"n": 4}, headers=headers).json()["tasks"]
         earned_total = 0
-        for tid in ("hard-00", "hard-01", "hard-02"):
+        statuses = []
+        for task in tasks[:3]:
             response = client.post("/results", headers=headers, json={
-                "results": [{"task_id": tid,
-                             "trace": LONG_TRACE.format(answers[tid]), "attempt": 1}]})
-            body = response.json()
-            earned_total += body["credits_earned"]
-            # le verdict reste honnête même au-delà du plafond
-            assert body["verdicts"][0]["accepted"] is True
+                "results": [{"task_id": task["task_id"],
+                             "trace": LONG_TRACE.format(answers[task["task_id"]]),
+                             "attempt": 1, "lease": task["lease"]}]})
+            statuses.append(response.status_code)
+            if response.status_code == 200:
+                earned_total += response.json()["credits_earned"]
         assert earned_total == 2  # plafond LENYAY_DAILY_CREDIT_CAP=2
+        assert statuses[2] == 429  # au-delà : refus explicite, tâche préservée

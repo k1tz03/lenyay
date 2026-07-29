@@ -59,6 +59,12 @@ DAILY_CREDIT_CAP = int(_env("DAILY_CREDIT_CAP", "2000"))
 MIN_TRACE_CHARS = int(_env("MIN_TRACE_CHARS", "40"))
 # Appels /stats par IP et par minute (le dashboard poll ~15/min).
 STATS_RATE_LIMIT = int(_env("STATS_RATE_LIMIT", "60"))
+# Preuve de travail : /results exige le bail signé émis par /work.
+REQUIRE_LEASE = _env("REQUIRE_LEASE", "1") == "1"
+# Durée de vie d'un bail (l'inférence CPU d'un lot peut être longue).
+LEASE_TTL = int(_env("LEASE_TTL", "21600"))  # 6 h
+# Traces versées au dataset par tâche, tous appareils confondus (anti-flooding).
+ARCHIVE_MAX_PER_TASK = int(_env("ARCHIVE_MAX_PER_TASK", "3"))
 
 # --- Inférence -------------------------------------------------------------
 TEMPERATURE = float(_env("TEMPERATURE", "0.8"))
