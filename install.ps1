@@ -1,14 +1,14 @@
-# Lenyay — installation du worker en une commande (Windows / PowerShell)
+﻿# Lenyay - installation du worker en une commande (Windows / PowerShell)
 #
 #   irm https://lenyay.org/install.ps1 | iex
 #
-# Installe dans %LOCALAPPDATA%\Lenyay : le code, un environnement Python isolé,
-# les dépendances, puis crée un raccourci de lancement. N'installe rien
-# ailleurs, ne touche pas au Python du système, ne demande pas les droits admin.
+# Installe dans %LOCALAPPDATA%\Lenyay : le code, un environnement Python isole,
+# les dependances, puis cree un raccourci de lancement. N'installe rien
+# ailleurs, ne touche pas au Python du systeme, ne demande pas les droits admin.
 
 $ErrorActionPreference = "Stop"
 
-# --- Réglages -----------------------------------------------------------
+# --- Reglages -----------------------------------------------------------
 $Coordinator = if ($env:LENYAY_COORDINATOR_URL) { $env:LENYAY_COORDINATOR_URL }
                else { "https://lenyay.org" }   # <- domaine public
 $Repo        = "https://github.com/k1tz03/lenyay"
@@ -19,7 +19,7 @@ function Step($msg) { Write-Host "`n=> $msg" -ForegroundColor Cyan }
 function Die($msg)  { Write-Host "`n[X] $msg" -ForegroundColor Red; exit 1 }
 
 Write-Host ""
-Write-Host "  Lenyay — reseau de calcul cooperatif" -ForegroundColor Green
+Write-Host "  Lenyay - reseau de calcul cooperatif" -ForegroundColor Green
 Write-Host "  Ta machine resout des problemes de maths pendant que tu dors."
 Write-Host ""
 
