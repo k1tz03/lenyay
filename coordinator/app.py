@@ -36,6 +36,7 @@ from common.schemas import (  # noqa: F401 — l'API expose ces modèles
     FeedbackRequest,
     MessageRequest,
     QuestionState,
+    RegenerateRequest,
     ServedQuestion,
     ServeOffer,
 )
@@ -544,7 +545,8 @@ def remove_conversation(conversation_id: str, account=Depends(require_account)):
 
 
 def _charge_and_queue(account, prompt: str, tier_id: str,
-                      conversation_id: str | None) -> AskResponse:
+                      conversation_id: str | None,
+                      regen: bool = False) -> AskResponse:
     """Débite le compte au tarif du palier, puis met la question en file."""
     account_id = account["account_id"]
     if not limits.device_limiter.allow(f"ask:{account_id}", config.RATE_LIMIT, 60.0):
@@ -562,7 +564,7 @@ def _charge_and_queue(account, prompt: str, tier_id: str,
             ),
         )
     question_id = db.create_question(account_id, prompt, tier["cost"],
-                                     conversation_id, tier["id"])
+                                     conversation_id, tier["id"], regen=regen)
     remaining = db.account_for_key(account["api_key"])["credits"]
     logger.info("Question %s (%s) posée par %s", question_id, tier["id"], account["handle"])
     return AskResponse(question_id=question_id, status="pending",
@@ -582,6 +584,21 @@ def post_message(conversation_id: str, payload: MessageRequest,
         title = prompt[:60] + ("…" if len(prompt) > 60 else "")
         db.set_conversation_title(conversation_id, title)
     return response
+
+
+@app.post("/conversations/{conversation_id}/regenerate", response_model=AskResponse)
+def regenerate(conversation_id: str, payload: RegenerateRequest,
+               account=Depends(require_account)):
+    """Reposer la dernière question du fil : une autre machine, un autre
+    tirage. Payant comme une question — quelqu'un refait un vrai travail."""
+    _owned_conversation(conversation_id, account)
+    tier_id = payload.tier
+    users = [m for m in db.conversation_messages(conversation_id)
+             if m["role"] == "user"]
+    if not users:
+        raise HTTPException(status_code=409, detail="Rien à régénérer dans ce fil")
+    return _charge_and_queue(account, users[-1]["content"], tier_id,
+                             conversation_id, regen=True)
 
 
 # --- Poser une question au réseau (sans fil) --------------------------------
@@ -628,6 +645,11 @@ def serve(device=Depends(require_device)):
     context: list[dict] = []
     if row["conversation_id"]:
         history = db.conversation_messages(row["conversation_id"], config.CONTEXT_MESSAGES)
+        if "is_regen" in row.keys() and row["is_regen"]:
+            # Régénération : la réponse écartée ne doit pas biaiser le nouveau
+            # tirage — on coupe tout ce qui suit la dernière question.
+            while history and history[-1]["role"] == "assistant":
+                history.pop()
         context = [{"role": m["role"], "content": m["content"]}
                    for m in history if m["content"] != row["prompt"]]
     logger.info("Question %s (%s) confiée à %s", row["id"], tier, device["device_name"])

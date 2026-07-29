@@ -28,7 +28,9 @@ comme disponible ce qui ne l'est pas.
 | **Grand modèle : palier Géant 14B** | — | ✅ livré — attend ses premières machines (voir GRAND-MODELE.md) |
 | **Grand modèle réparti sur N foyers** | plusieurs mois (R&D) | ❌ recherche — chemin par étapes dans GRAND-MODELE.md |
 | **Abonnement payant** | 1–2 sem. + société + Stripe + CGV | ❌ décision juridique, pas du code |
-| **Application Android** | 3–6 semaines | ❌ hors fenêtre du 7/8 |
+| **Application Android** | 4–6 semaines | ❌ hors fenêtre du 7/8 |
+| **Application iOS** | +3–4 sem. après Android | ❌ consommation seule (voir plus bas) |
+| **Mise en ligne (VPS + domaine)** | 1 soirée + DNS | ✅ **kit prêt** — deploy/DEPLOIEMENT.md |
 
 **Sandbox code — condition d'exploitation** : le vérificateur exécute le code
 soumis en sous-processus isolé (`python -I`, délai strict, filtrage statique,
@@ -69,6 +71,22 @@ tâches **vérifiables**. Extensions atteignables par ordre de difficulté :
 2. **Questions à réponse courte** (factuel, unités, dates) — vérifiables.
 3. **Rédaction, résumé, style** — pas de vérité unique : demande un modèle-juge
    ou un vote, donc plus fragile. À garder pour plus tard.
+
+## Mobile — Android d'abord, iOS à part
+
+- **Desktop** : déjà livré — l'installeur en une commande EST la version
+  desktop (worker + `--chat` + le site pour converser).
+- **Android (4–6 sem.)** : le seul mobile qui peut vraiment CONTRIBUER. Un
+  service de premier plan pendant la charge nocturne peut faire tourner le
+  1,5 B (les téléphones récents le portent) : le téléphone gagne des crédits
+  la nuit comme un PC. Compte Play Store : 25 $ une fois, validation en jours.
+- **iOS (+3–4 sem. après)** : Apple interdit de fait le calcul long en
+  arrière-plan — une app iOS ne PEUT PAS travailler la nuit. L'utilisateur
+  iOS est donc consommateur pur : **il paie l'abonnement, sans alternative de
+  contribution**. C'est une contrainte d'Apple, pas un choix commercial — et
+  on l'affichera tel quel. S'ajoutent 99 $/an de compte développeur et
+  15–30 % de commission d'Apple sur l'abonnement : le prix iOS doit couvrir
+  cette commission (donc légèrement supérieur, à commission égale de marge).
 
 ## Stratégie de revenus (ta consigne)
 

@@ -139,6 +139,10 @@ button{font:inherit}
 .fb button[aria-pressed="true"]{opacity:1; filter:none; border-color:var(--verd);
   background:var(--verd-pale)}
 .fbhint{font-size:.78rem; color:var(--soft); margin-left:.3rem}
+.regen{border:1px solid var(--line); background:var(--panel); border-radius:8px;
+  cursor:pointer; font-size:.78rem; color:var(--soft); padding:.25rem .55rem;
+  margin-left:.35rem; transition:all .15s}
+.regen:hover{color:var(--verd-deep); border-color:var(--verd)}
 .dots span{display:inline-block; width:.4rem; height:.4rem; border-radius:50%;
   background:var(--verd); margin-right:.2rem; animation:hop 1.2s infinite}
 .dots span:nth-child(2){animation-delay:.15s} .dots span:nth-child(3){animation-delay:.3s}
@@ -557,8 +561,10 @@ async function openThread(id){
   conv = id;
   const d = await (await api("/conversations/" + id)).json();
   $("turns").innerHTML = "";
+  const lastAi = [...d.messages].reverse().find(m => m.role === "assistant");
   d.messages.forEach(m => addTurn(m.role === "user" ? "me" : "ai", m.content,
-    m.role === "assistant" ? {...m, message_id: m.id} : null));
+    m.role === "assistant"
+      ? {...m, message_id: m.id, can_regen: lastAi && m.id === lastAi.id} : null));
   loadThreads(); scroll();
 }
 /* Les réponses code arrivent en blocs ``` : on les rend dans des <pre>
@@ -627,7 +633,20 @@ function addTurn(kind, text, meta){
     el.querySelector(".body").append(m);
     // On ne peut noter que ses propres messages IA identifiés.
     if(meta.message_id){
-      el.querySelector(".body").append(feedbackBar(meta.message_id, meta.rating));
+      const bar = feedbackBar(meta.message_id, meta.rating);
+      if(meta.can_regen){
+        // Un seul bouton Régénérer à la fois : sur la dernière réponse.
+        document.querySelectorAll(".regen").forEach(b => b.remove());
+        const rg = document.createElement("button");
+        rg.type = "button"; rg.className = "regen";
+        const t = tiers.find(x => x.id === tier);
+        rg.textContent = "↻ Régénérer";
+        rg.title = "Reposer la même question à une autre machine" +
+          (t ? ` (${t.cost} cr.)` : "");
+        rg.onclick = regenerate;
+        bar.append(rg);
+      }
+      el.querySelector(".body").append(bar);
     }
   }
   $("turns").append(el); scroll();
@@ -658,6 +677,11 @@ async function send(text){
   const asked = await r.json();
   account.credits = asked.credits_left; paintWallet(); loadThreads();
 
+  pollAnswer(asked.question_id);
+}
+
+/* Suivre une question jusqu'à sa réponse (envoi initial comme régénération). */
+function pollAnswer(questionId){
   const pending = addTurn("ai", "");
   pending.querySelector(".txt").innerHTML =
     `<span class="dots">en attente d'une machine <span></span><span></span><span></span></span>`;
@@ -666,14 +690,15 @@ async function send(text){
   polling = setInterval(async () => {
     tries++;
     try{
-      const s = await (await fetch("/ask/" + asked.question_id)).json();
+      const s = await (await fetch("/ask/" + questionId)).json();
       if(s.status === "serving"){
         pending.querySelector(".txt").innerHTML =
           `<span class="dots">${esc(s.device_name || "une machine")} rédige <span></span><span></span><span></span></span>`;
       }
       if(s.status === "done"){
         clearInterval(polling); pending.remove();
-        addTurn("ai", s.answer, {device_name:s.device_name, tier, message_id:s.message_id});
+        addTurn("ai", s.answer, {device_name:s.device_name, tier,
+                                 message_id:s.message_id, can_regen:true});
         $("send").disabled = false;
       }
       if(tries > 120){
@@ -683,6 +708,22 @@ async function send(text){
       }
     }catch(e){}
   }, 2000);
+}
+
+/* Reposer la même question : nouvelle machine, nouveau tirage — et le même
+   prix qu'une question, car l'ordinateur d'un membre refait un vrai travail. */
+async function regenerate(){
+  if(!conv) return;
+  $("send").disabled = true;
+  const r = await api(`/conversations/${conv}/regenerate`, {method:"POST",
+    body: JSON.stringify({tier})});
+  if(r.status === 402){
+    outOfCredits((await r.json()).detail); $("send").disabled = false; return;
+  }
+  if(!r.ok){ $("send").disabled = false; return; }
+  const asked = await r.json();
+  account.credits = asked.credits_left; paintWallet();
+  pollAnswer(asked.question_id);
 }
 function outOfCredits(detail){
   $("dlg-body").innerHTML = `<h3>Plus de crédits pour aujourd'hui</h3>

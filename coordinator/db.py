@@ -96,7 +96,8 @@ CREATE TABLE IF NOT EXISTS questions (
     created_at      TEXT NOT NULL,
     claimed_at      TEXT,
     done_at         TEXT,
-    answer_message_id INTEGER
+    answer_message_id INTEGER,
+    is_regen        INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_questions_status ON questions (status, tier, created_at);
 
@@ -177,6 +178,9 @@ def init_db() -> None:
         q_columns = {r["name"] for r in conn.execute("PRAGMA table_info(questions)")}
         if q_columns and "answer_message_id" not in q_columns:
             conn.execute("ALTER TABLE questions ADD COLUMN answer_message_id INTEGER")
+        if q_columns and "is_regen" not in q_columns:
+            conn.execute("ALTER TABLE questions ADD COLUMN is_regen INTEGER"
+                         " NOT NULL DEFAULT 0")
         # Les comptes nés « clé seule » précèdent la vraie authentification.
         acc_columns = {r["name"] for r in conn.execute("PRAGMA table_info(accounts)")}
         if "email" not in acc_columns:
@@ -562,13 +566,16 @@ def add_credits(device_id: str, amount: int, kind: str = "solved",
 
 
 def create_question(account_id: str, prompt: str, cost: int,
-                    conversation_id: str | None = None, tier: str = "rapide") -> str:
+                    conversation_id: str | None = None, tier: str = "rapide",
+                    regen: bool = False) -> str:
     question_id = uuid.uuid4().hex[:16]
     with _connect() as conn:
         conn.execute(
             "INSERT INTO questions (id, account_id, conversation_id, tier, prompt,"
-            " status, cost, created_at) VALUES (?, ?, ?, ?, ?, 'pending', ?, ?)",
-            (question_id, account_id, conversation_id, tier, prompt, cost, _now()),
+            " status, cost, created_at, is_regen)"
+            " VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?)",
+            (question_id, account_id, conversation_id, tier, prompt, cost, _now(),
+             1 if regen else 0),
         )
     return question_id
 

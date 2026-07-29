@@ -1,0 +1,34 @@
+[Unit]
+Description=Coordinateur Lenyay
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=lenyay
+Group=lenyay
+WorkingDirectory=/opt/lenyay
+Environment=LENYAY_HOST=127.0.0.1
+Environment=LENYAY_PORT=8000
+Environment=LENYAY_DB=/var/lib/lenyay/data/lenyay.db
+Environment=LENYAY_TASKS=/var/lib/lenyay/data/tasks.jsonl
+Environment=LENYAY_CODE_TASKS=/var/lib/lenyay/data/code_tasks.jsonl
+Environment=LENYAY_ACCEPTED_DIR=/var/lib/lenyay/data/accepted
+Environment=LENYAY_ADMIN_TOKEN=__ADMIN_TOKEN__
+ExecStart=/opt/lenyay/.venv/bin/python -m coordinator.app
+Restart=always
+RestartSec=3
+
+# Confinement : le service ne voit que ses données, en écriture nulle part
+# ailleurs. C'est aussi la première couche d'isolation du sandbox code.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/lenyay
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+MemoryMax=2G
+
+[Install]
+WantedBy=multi-user.target

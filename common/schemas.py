@@ -184,6 +184,10 @@ class MessageRequest(BaseModel):
     tier: str = Field(default="rapide", max_length=24)
 
 
+class RegenerateRequest(BaseModel):
+    tier: str = Field(default="rapide", max_length=24)
+
+
 class Conversation(BaseModel):
     id: str
     title: str

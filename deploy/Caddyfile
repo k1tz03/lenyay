@@ -1,0 +1,18 @@
+# Caddy — HTTPS automatique (Let's Encrypt) devant le coordinateur Lenyay.
+__DOMAIN__ {
+	encode gzip
+
+	# Personne n'envoie légitimement plus d'1 Mo au coordinateur.
+	request_body {
+		max_size 1MB
+	}
+
+	reverse_proxy 127.0.0.1:8000
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "no-referrer"
+	}
+}
