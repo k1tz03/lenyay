@@ -45,6 +45,8 @@ BATCH_SIZE = min(32, max(1, int(_env("BATCH_SIZE", "4"))))
 MAX_ATTEMPTS = int(_env("ATTEMPTS", "2"))
 # 0 = boucle infinie ; sinon le worker s'arrête après N tâches (pratique en test).
 MAX_TASKS = int(_env("MAX_TASKS", "0"))
+# Mode chasse : le coordinateur sert en priorité les tâches ratées par tous.
+HUNT_MODE = _env("HUNT", "0") == "1"
 
 # --- Inférence -------------------------------------------------------------
 TEMPERATURE = float(_env("TEMPERATURE", "0.8"))

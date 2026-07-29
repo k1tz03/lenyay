@@ -128,6 +128,16 @@ def add_credits(device_id: str, amount: int) -> int:
     return row["credits"] if row else 0
 
 
+def hard_task_ids() -> set[str]:
+    """Tâches déjà tentées mais jamais résolues par personne — cibles du mode
+    chasse : c'est là que naissent les traces « durement gagnées »."""
+    with _connect() as conn:
+        rows = conn.execute(
+            "SELECT task_id FROM rollouts GROUP BY task_id HAVING MAX(accepted) = 0"
+        ).fetchall()
+    return {r["task_id"] for r in rows}
+
+
 def accepted_task_ids(device_id: str) -> set[str]:
     """Tâches déjà résolues par cet appareil — pour ne pas les lui re-servir."""
     with _connect() as conn:

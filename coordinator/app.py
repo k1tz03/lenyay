@@ -54,8 +54,13 @@ def require_device(x_api_key: str | None = Header(default=None, alias="X-API-Key
     return device
 
 
-def _archive_accepted(device_id: str, task, trace: str, extracted: str) -> None:
-    """Les traces correctes sont le futur dataset de fine-tuning : JSONL append-only."""
+def _archive_accepted(
+    device_id: str, task, trace: str, extracted: str, attempt: int = 1
+) -> None:
+    """Les traces correctes sont le futur dataset de fine-tuning : JSONL append-only.
+
+    Le numéro de tentative permet de sur-pondérer à l'entraînement les traces
+    « durement gagnées » (tentative ≥ 2), les plus instructives."""
     record = {
         "task_id": task.task_id,
         "prompt": task.prompt,
@@ -63,6 +68,7 @@ def _archive_accepted(device_id: str, task, trace: str, extracted: str) -> None:
         "trace": trace,
         "extracted_answer": extracted,
         "device_id": device_id,
+        "attempt": attempt,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
     day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
@@ -88,7 +94,8 @@ def get_work(
     device=Depends(require_device),
 ):
     solved = db.accepted_task_ids(device["device_id"])
-    batch = tasks.sample(n, exclude=solved)
+    hard = db.hard_task_ids() if config.HUNT_MODE else None
+    batch = tasks.sample(n, exclude=solved, hard_first=hard)
     # Task (sans expected_answer) : la réponse attendue ne sort JAMAIS d'ici.
     return WorkBatch(tasks=[Task(task_id=t.task_id, prompt=t.prompt) for t in batch])
 
@@ -115,7 +122,7 @@ def submit_results(payload: ResultsPayload, device=Depends(require_device)):
         )
         if accepted and result.task_id not in already_accepted:
             earned += 1
-            _archive_accepted(device_id, task, result.trace, extracted)
+            _archive_accepted(device_id, task, result.trace, extracted, result.attempt)
             already_accepted.add(result.task_id)
         verdicts.append(
             Verdict(task_id=result.task_id, accepted=accepted,

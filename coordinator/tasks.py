@@ -55,11 +55,20 @@ def count() -> int:
     return len(_tasks)
 
 
-def sample(n: int, exclude: set[str]) -> list[TaskWithAnswer]:
+def sample(
+    n: int, exclude: set[str], hard_first: set[str] | None = None
+) -> list[TaskWithAnswer]:
     """n tâches au hasard parmi celles que l'appareil n'a pas encore résolues.
 
-    Catalogue épuisé → lot vide : le worker se met en pause plutôt que de
-    re-résoudre (et re-créditer) des tâches déjà acceptées.
+    En mode chasse (hard_first), les tâches déjà ratées par tout le monde
+    passent en tête de lot ; le reste complète. Catalogue épuisé → lot vide.
     """
     pool = [t for tid, t in _tasks.items() if tid not in exclude]
+    if hard_first:
+        hard = [t for t in pool if t.task_id in hard_first]
+        rest = [t for t in pool if t.task_id not in hard_first]
+        picked = random.sample(hard, min(n, len(hard)))
+        if len(picked) < n:
+            picked += random.sample(rest, min(n - len(picked), len(rest)))
+        return picked
     return random.sample(pool, min(n, len(pool)))
