@@ -118,8 +118,8 @@ def run_worker() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s",
                         datefmt="%H:%M:%S")
     sys.argv = ["lenyay-worker"]  # le parseur du worker ne doit pas voir --worker
-    from worker.main import main as worker_main
-    worker_main()
+    from worker.main import run as worker_run
+    worker_run()
 
 
 def run_gui() -> None:
