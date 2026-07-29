@@ -90,6 +90,16 @@ button{font:inherit}
   animation:beat 2.4s ease-in-out infinite}
 @keyframes beat{0%,100%{opacity:1}50%{opacity:.25}}
 @media (max-width:620px){ .netstate{display:none} }
+.topnav{margin-left:auto; display:flex; gap:1.05rem; font-size:.88rem}
+.topnav a{color:var(--soft); text-decoration:none}
+.topnav a:hover{color:var(--verd-deep); text-decoration:underline; text-underline-offset:4px}
+.topnav ~ .netstate{margin-left:0}
+@media (max-width:860px){ .topnav a.opt{display:none} }
+.signin{font:inherit; font-size:.86rem; font-weight:600; border:1.5px solid var(--line);
+  background:var(--panel); color:var(--ink); border-radius:9px; padding:.4rem .85rem;
+  cursor:pointer}
+.signin:hover{border-color:var(--verd)}
+.signin[hidden]{display:none}
 
 .stream{flex:1; overflow-y:auto; padding:1.4rem 1.1rem 1rem; min-height:0}
 .inner{max-width:760px; margin:0 auto; display:flex; flex-direction:column; gap:1.1rem}
@@ -120,110 +130,28 @@ button{font:inherit}
 .samples button{background:var(--panel); border:1px solid var(--line); border-radius:999px;
   padding:.45rem .9rem; font-size:.88rem; color:var(--soft); cursor:pointer}
 .samples button:hover{border-color:var(--verd); color:var(--verd-deep)}
+.learn{display:inline-block; margin-top:.4rem; color:var(--verd-deep); font-weight:600;
+  text-decoration:none; border-bottom:1.5px solid var(--verd)}
+.learn:hover{color:var(--verd)}
 
-/* ---- L'animation : le cycle, montré plutôt qu'expliqué ---- */
-.cycle{margin:1.8rem auto 0; max-width:660px; background:var(--panel);
-  border:1px solid var(--line); border-radius:14px; padding:1.2rem 1.1rem 1rem;
-  box-shadow:var(--lift)}
-.cycle h4{margin:0 0 .1rem; font-size:.95rem; text-align:center}
-.cycle .cap{margin:0 0 .9rem; font-size:.84rem; color:var(--soft); text-align:center}
-.stage{position:relative; height:132px}
-.node{position:absolute; top:50%; transform:translateY(-50%); text-align:center; width:104px}
-.node .ic{width:2.6rem; height:2.6rem; margin:0 auto .35rem; border-radius:11px;
-  display:grid; place-items:center; border:1px solid var(--line); background:var(--panel-2)}
-.node .lb{font-size:.76rem; color:var(--soft); line-height:1.25}
-.node.you{left:0} .node.net{left:50%; margin-left:-52px} .node.mate{right:0}
-.node.net .ic{background:var(--verd-pale); border-color:var(--verd)}
-.rail{position:absolute; left:104px; right:104px; top:50%; height:2px;
-  background:repeating-linear-gradient(90deg,var(--line) 0 6px,transparent 6px 12px)}
-.pip{position:absolute; top:50%; width:.62rem; height:.62rem; border-radius:50%;
-  margin-top:-.31rem; opacity:0}
-.pip.q{background:var(--verd-deep); animation:goRight 7s linear infinite}
-.pip.a{background:var(--amber); animation:goLeft 7s linear infinite}
-.pip.n{background:var(--verd); animation:night 7s ease-in-out infinite}
-@keyframes goRight{
-  0%{left:96px; opacity:0} 6%{opacity:1}
-  36%{left:calc(100% - 96px); opacity:1} 42%{opacity:0} 100%{opacity:0}}
-@keyframes goLeft{
-  0%,44%{opacity:0} 50%{left:calc(100% - 96px); opacity:1}
-  78%{left:96px; opacity:1} 84%{opacity:0} 100%{opacity:0}}
-@keyframes night{
-  0%,84%{opacity:0} 88%{left:calc(100% - 96px); opacity:1}
-  97%{left:96px; opacity:1} 100%{opacity:0}}
-.legend{display:grid; gap:.4rem; margin:.7rem 0 0; font-size:.82rem; color:var(--soft)}
-.legend div{display:flex; gap:.5rem; align-items:baseline}
-.legend i{width:.55rem; height:.55rem; border-radius:50%; flex:none; margin-top:.35rem}
-.legend .l1 i{background:var(--verd-deep)} .legend .l2 i{background:var(--amber)}
-.legend .l3 i{background:var(--verd)}
-.legend b{color:var(--ink); font-weight:600}
-@media (prefers-reduced-motion:reduce){ .pip{animation:none; opacity:1}
-  .pip.q{left:30%} .pip.a{left:60%} .pip.n{left:45%} }
-@media (max-width:520px){ .node{width:76px} .node.net{margin-left:-38px}
-  .rail{left:76px; right:76px} }
-
-.composer{border-top:1px solid var(--line); background:rgba(242,246,243,.9); padding:.85rem 1.1rem}
-.composer .inner{gap:.5rem}
-.box{display:flex; gap:.5rem; align-items:flex-end; background:var(--panel);
-  border:1px solid var(--line); border-radius:14px; padding:.5rem .5rem .5rem .9rem;
-  box-shadow:var(--lift)}
-.box textarea{flex:1; border:none; outline:none; resize:none; font:inherit; font-size:1rem;
-  background:none; color:var(--ink); max-height:9rem; padding:.35rem 0}
-.box button{border:none; border-radius:10px; background:var(--verd-deep); color:#fff;
-  width:2.4rem; height:2.4rem; cursor:pointer; display:grid; place-items:center}
-.box button:hover:not(:disabled){background:var(--verd)}
-.box button:disabled{opacity:.45; cursor:default}
-.legalese{font-size:.78rem; color:var(--soft); text-align:center}
-
-/* ---- Sous le pli : l'explication ---- */
-.below{background:var(--panel); border-top:1px solid var(--line)}
-.wrap{max-width:1000px; margin:0 auto; padding:0 clamp(1.1rem,3.6vw,2rem)}
-.below section{padding:clamp(2.4rem,5vw,3.6rem) 0; border-bottom:1px solid var(--line)}
-.tag{font-size:.76rem; letter-spacing:.14em; text-transform:uppercase; color:var(--verd);
-  font-weight:600; margin:0 0 .7rem}
-h2{font-size:clamp(1.35rem,2.8vw,1.85rem); line-height:1.18; letter-spacing:-.02em;
-  margin:0 0 .6rem; max-width:26ch}
-.note{color:var(--soft); max-width:62ch; margin:0}
-.grid3{display:grid; gap:.9rem; grid-template-columns:repeat(auto-fit,minmax(230px,1fr));
-  margin-top:1.6rem}
-.tile{background:var(--panel-2); border:1px solid var(--line); border-radius:12px;
-  padding:1.15rem 1.2rem}
-.tile .n{width:1.8rem; height:1.8rem; border-radius:8px; background:var(--verd-pale);
-  color:var(--verd-deep); display:grid; place-items:center; font-weight:700; font-size:.85rem;
-  margin-bottom:.6rem}
-.tile h3{font-size:1rem; margin:0 0 .35rem}
-.tile p{margin:0; color:var(--soft); font-size:.94rem}
-.two{display:grid; gap:1rem; grid-template-columns:repeat(auto-fit,minmax(270px,1fr));
-  margin-top:1.5rem}
-.panel{background:var(--panel-2); border:1px solid var(--line); border-radius:12px; padding:1.2rem}
-.panel.soon{border-style:dashed}
-.panel h4{margin:0 0 .8rem; display:flex; align-items:center; gap:.5rem; font-size:.98rem}
-.pill{font-size:.68rem; letter-spacing:.09em; text-transform:uppercase; padding:.12rem .45rem;
-  border-radius:4px; font-weight:700}
-.panel.now .pill{background:var(--verd); color:#fff}
-.panel.soon .pill{background:var(--amber-pale); color:#7A5312; border:1px solid #E7D3AE}
-.panel ul{margin:0; padding:0; list-style:none; display:grid; gap:.45rem; font-size:.95rem;
-  color:#3C4E48}
-.panel li{display:flex; gap:.55rem}
-.panel.now li::before{content:"✓"; color:var(--verd); font-weight:700}
-.panel.soon li::before{content:"→"; color:var(--amber)}
-.cmd{display:flex; border:1px solid var(--line); border-radius:10px; background:var(--panel-2);
-  overflow:hidden; max-width:640px; margin-top:1.3rem}
-.cmd code{font-family:var(--mono); font-size:.85rem; padding:.8rem .95rem; flex:1;
-  overflow-x:auto; white-space:nowrap}
-.cmd button{font-size:.84rem; font-weight:600; padding:0 1rem; cursor:pointer;
-  background:var(--verd-deep); color:#fff; border:none}
-.os{display:flex; gap:1rem; margin-top:1.3rem; font-size:.9rem}
-.os button{background:none; border:none; padding:0 0 3px; cursor:pointer; color:var(--soft);
-  border-bottom:2px solid transparent}
-.os button[aria-selected="true"]{color:var(--ink); border-color:var(--verd); font-weight:600}
-.pledge{margin:1.2rem 0 0; padding:0; list-style:none; display:grid; gap:.45rem; max-width:60ch}
-.pledge li{display:flex; gap:.65rem; font-size:.95rem}
-.pledge li::before{content:"non"; flex:none; font-size:.68rem; letter-spacing:.08em;
-  text-transform:uppercase; color:var(--amber); border:1px solid var(--amber); border-radius:3px;
-  padding:0 .28rem; height:1.15rem; line-height:1.1rem; margin-top:.24rem}
-.foot{padding:1.6rem 0 2.4rem; color:var(--soft); font-size:.87rem; display:flex; gap:1.2rem;
-  flex-wrap:wrap}
-.foot .right{margin-left:auto}
+/* ---- Connexion ---- */
+.authtabs{display:flex; gap:.3rem; background:var(--panel-2); border:1px solid var(--line);
+  border-radius:10px; padding:.25rem; margin-bottom:1.1rem}
+.authtabs button{flex:1; border:none; background:none; cursor:pointer; padding:.5rem;
+  border-radius:8px; font-size:.9rem; color:var(--soft)}
+.authtabs button[aria-selected="true"]{background:var(--panel); color:var(--ink);
+  font-weight:600; box-shadow:0 1px 3px rgba(30,43,39,.12)}
+.field{display:block; font-size:.85rem; font-weight:600; color:var(--soft);
+  margin-bottom:.75rem}
+.field input{display:block; width:100%; margin-top:.3rem; font:inherit; font-size:.98rem;
+  font-weight:400; padding:.62rem .75rem; border:1px solid var(--line); border-radius:9px;
+  background:#fff; color:var(--ink)}
+.field input:focus{outline:2px solid var(--verd); outline-offset:-1px}
+.autherr{min-height:1.1rem; margin:.1rem 0 .3rem; font-size:.85rem; color:#B4541E}
+.authnote{margin:.7rem 0 0; font-size:.82rem; color:var(--soft)}
+.leave{margin-top:.55rem; width:100%; padding:.6rem; font-size:.88rem; border-radius:9px;
+  border:1px solid var(--line); background:none; color:var(--soft); cursor:pointer}
+.leave:hover{color:#B4541E; border-color:#E0BFA8}
 
 dialog{border:none; border-radius:16px; padding:0; max-width:28rem; width:calc(100% - 2rem);
   box-shadow:0 24px 60px -20px rgba(30,43,39,.45); color:var(--ink)}
@@ -293,7 +221,7 @@ dialog#dlg{max-width:34rem}
       <button class="wallet" id="wallet">
         <span id="wallet-n">—</span> crédits <span class="g" id="wallet-who">compte</span>
       </button>
-      <a class="sidelink" href="#projet">Qu'est-ce que Lenyay ?</a>
+      <a class="sidelink" href="/decouvrir">Qu'est-ce que Lenyay ?</a>
       <a class="sidelink" href="/dashboard">Le réseau en direct</a>
     </footer>
   </aside>
@@ -302,7 +230,14 @@ dialog#dlg{max-width:34rem}
     <div class="bar">
       <button class="burger" id="burger" aria-label="Fils">☰</button>
       <div class="picker" id="picker"></div>
+      <nav class="topnav">
+        <a href="/decouvrir">Découvrir</a>
+        <a href="/decouvrir#nuit" class="opt">Comment ça marche</a>
+        <a href="/decouvrir#participer" class="opt">Participer</a>
+        <a href="/dashboard" class="opt">Le réseau</a>
+      </nav>
       <span class="netstate"><i></i><span id="net">réseau</span></span>
+      <button class="signin" id="signin">Se connecter</button>
     </div>
 
     <div class="stream" id="stream">
@@ -322,87 +257,11 @@ dialog#dlg{max-width:34rem}
   </main>
 </div>
 
-<div class="below" id="projet">
-  <div class="wrap">
-    <section>
-      <p class="tag">Ce que c'est</p>
-      <h2>Une IA gratuite qui ne tourne dans aucun datacenter.</h2>
-      <p class="note">Elle tourne sur nos ordinateurs. Tu prêtes le tien quand tu ne t'en
-        sers pas — la nuit, par exemple — et tu utilises l'IA quand ça t'arrange. Les
-        crédits ne font que compter l'équilibre entre les deux.</p>
-      <div class="grid3">
-        <div class="tile"><div class="n">1</div><h3>Tu poses une question</h3>
-          <p>Elle rejoint une file. Le modèle « Costaud » coûte plus cher : il est plus
-            lent et demande une machine plus solide.</p></div>
-        <div class="tile"><div class="n">2</div><h3>Une machine la prend</h3>
-          <p>Celle d'un membre, allumée à ce moment-là, modèle déjà chargé. Son nom
-            apparaît sous la réponse.</p></div>
-        <div class="tile"><div class="n">3</div><h3>Chacun y gagne</h3>
-          <p>Son propriétaire est crédité ; toi, tu regagnes des crédits en laissant ta
-            machine travailler à son tour.</p></div>
-      </div>
-    </section>
-
-    <section>
-      <p class="tag">Où on en est</p>
-      <h2>On n'annonce que ce qui marche.</h2>
-      <div class="two">
-        <div class="panel now">
-          <h4><span class="pill">Disponible</span></h4>
-          <ul>
-            <li>Conversations suivies, avec mémoire du fil</li>
-            <li>Deux modèles au choix, facturés en crédits</li>
-            <li>Compte, crédits gagnés et dépensés, machines rattachées</li>
-            <li>L'IA hors ligne sur ta machine (<code>--chat</code>), sans limite</li>
-          </ul>
-        </div>
-        <div class="panel soon">
-          <h4><span class="pill">En construction</span></h4>
-          <ul>
-            <li>Abonnement pour continuer sans contribuer</li>
-            <li>Un très grand modèle réparti sur plusieurs machines</li>
-            <li>Participer depuis un téléphone Android</li>
-          </ul>
-        </div>
-      </div>
-    </section>
-
-    <section>
-      <p class="tag">Participer</p>
-      <h2>Prête ta machine, regagne des crédits.</h2>
-      <p class="note">Cinq minutes d'installation. Rien ne s'installe hors de son dossier,
-        aucun mot de passe n'est demandé, tu arrêtes quand tu veux.</p>
-      <div class="os" role="tablist">
-        <button role="tab" aria-selected="true" data-os="win">Windows</button>
-        <button role="tab" aria-selected="false" data-os="nix">Linux / macOS</button>
-      </div>
-      <div class="cmd">
-        <code id="cmd-text">irm https://lenyay.org/install.ps1 | iex</code>
-        <button id="copy">Copier</button>
-      </div>
-      <ul class="pledge">
-        <li>de cryptomonnaie, ni de minage.</li>
-        <li>de donnée personnelle : ni e-mail, ni mot de passe, ni carte bancaire.</li>
-        <li>de démarrage automatique dans ton dos.</li>
-        <li>de publicité, ni de traceur sur cette page.</li>
-      </ul>
-    </section>
-
-    <div class="foot">
-      <span>Lenyay — un bien commun</span>
-      <a href="https://github.com/k1tz03/lenyay">Le code, entièrement ouvert</a>
-      <a href="/dashboard">Le réseau en direct</a>
-      <span class="right">Construit en public</span>
-    </div>
-  </div>
-</div>
-
 <dialog id="dlg"><div class="dlg" id="dlg-body"></div></dialog>
 
 <script>
 const $ = id => document.getElementById(id);
 const fmt = n => Number(n).toLocaleString("fr-FR");
-const KEY = "lenyay.account";
 let account = null, tiers = [], tier = "rapide", conv = null, polling = null;
 
 const esc = s => { const d = document.createElement("div"); d.textContent = s ?? ""; return d.innerHTML; };
@@ -426,47 +285,76 @@ async function loadTiers(){
   });
 }
 
-/* ---------- Compte ---------- */
+/* ---------- Compte : session par cookie, e-mail + mot de passe ---------- */
 async function loadAccount(){
-  const key = localStorage.getItem(KEY);
-  if(!key) return;
-  const r = await fetch("/accounts/me", {headers:{"X-Account-Key":key}});
-  if(!r.ok){ localStorage.removeItem(KEY); return; }
-  account = {...await r.json(), key};
+  const r = await fetch("/accounts/me");     // le cookie de session suffit
+  if(!r.ok) return;
+  account = await r.json(); account.key = account.account_key;
   paintWallet(); loadThreads();
 }
 function paintWallet(){
   if(!account) return;
   $("wallet-n").innerHTML = "<b>" + fmt(account.credits) + "</b>";
   $("wallet-who").textContent = account.handle;
+  $("signin").hidden = true;
+}
+function authForm(mode){
+  const login = mode === "login";
+  $("dlg-body").innerHTML = `
+    <div class="authtabs">
+      <button data-m="login" aria-selected="${login}">Se connecter</button>
+      <button data-m="register" aria-selected="${!login}">Créer un compte</button>
+    </div>
+    ${login ? "" : `<label class="field">Pseudo
+      <input id="a-handle" maxlength="40" placeholder="visible sur le tableau de bord"></label>`}
+    <label class="field">E-mail
+      <input id="a-email" type="email" autocomplete="email" placeholder="toi@exemple.fr"></label>
+    <label class="field">Mot de passe
+      <input id="a-pass" type="password" autocomplete="${login ? "current-password" : "new-password"}"
+        placeholder="${login ? "" : "8 caractères minimum"}"></label>
+    <p class="autherr" id="a-err"></p>
+    <button class="go" id="a-go">${login ? "Se connecter" : "Créer mon compte — 20 crédits offerts"}</button>
+    ${login ? "" : `<p class="authnote">Pas de carte bancaire, pas de newsletter. L'e-mail ne
+      sert qu'à retrouver ton compte.</p>`}`;
+  $("dlg-body").querySelectorAll(".authtabs button").forEach(b =>
+    b.onclick = () => authForm(b.dataset.m));
+  $("a-go").onclick = async () => {
+    const email = $("a-email").value.trim(), password = $("a-pass").value;
+    const body = login ? {email, password}
+      : {email, password, handle: ($("a-handle").value || "anonyme").trim()};
+    const r = await fetch(login ? "/auth/login" : "/auth/register", {
+      method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)});
+    if(!r.ok){
+      const d = await r.json().catch(() => ({}));
+      $("a-err").textContent = typeof d.detail === "string" ? d.detail
+        : (login ? "Connexion impossible." : "Vérifie l'e-mail et le mot de passe (8 caractères min).");
+      return;
+    }
+    await loadAccount();
+    $("dlg").close();
+    if(window._authResolve){ window._authResolve(true); window._authResolve = null; }
+  };
+  $("a-pass").addEventListener("keydown", e => { if(e.key === "Enter") $("a-go").click(); });
 }
 async function ensureAccount(){
   if(account) return true;
   return new Promise(resolve => {
-    $("dlg-body").innerHTML = `<h3>Bienvenue</h3>
-      <p>Choisis un pseudo. Pas d'e-mail, pas de mot de passe : ta clé suffit.
-      Tu commences avec des crédits offerts.</p>
-      <input id="h" placeholder="ton pseudo" maxlength="40">
-      <button class="go" id="ok">Créer mon compte</button>`;
+    window._authResolve = resolve;
+    authForm("register");
     $("dlg").showModal();
-    $("ok").onclick = async () => {
-      const handle = ($("h").value || "anonyme").trim();
-      const r = await fetch("/accounts", {method:"POST",
-        headers:{"Content-Type":"application/json"}, body:JSON.stringify({handle})});
-      if(!r.ok){ $("dlg").close(); resolve(false); return; }
-      const a = await r.json();
-      localStorage.setItem(KEY, a.account_key);
-      account = {handle:a.handle, credits:a.credits, key:a.account_key, devices:[], questions:[]};
-      paintWallet(); loadThreads();
-      $("dlg-body").innerHTML = `<h3>C'est fait, ${esc(a.handle)}</h3>
-        <p>Tu as <b>${a.credits} crédits</b>. Voici ta clé : garde-la pour retrouver ton
-        compte depuis un autre navigateur.</p>
-        <div class="key">${a.account_key}</div>
-        <button class="go" onclick="document.getElementById('dlg').close()">Commencer</button>`;
-      resolve(true);
-    };
+    $("dlg").addEventListener("close", () => {
+      if(window._authResolve){ window._authResolve(false); window._authResolve = null; }
+    }, {once:true});
   });
 }
+async function logout(){
+  await fetch("/auth/logout", {method:"POST"});
+  account = null; conv = null;
+  $("signin").hidden = false;
+  $("wallet-n").textContent = "—"; $("wallet-who").textContent = "compte";
+  $("threads").innerHTML = ""; $("dlg").close(); blank();
+}
+$("signin").onclick = () => { authForm("login"); $("dlg").showModal(); };
 /* ---------- Le compte : solde, gains, dépenses, machines ---------- */
 const KINDS = {
   welcome:  ["🎁", "Bienvenue"],
@@ -514,7 +402,7 @@ async function openAccount(tab = "solde"){
     <div class="acct-head">
       <div>
         <h3>${esc(me.handle)}</h3>
-        <p class="sub">Compte Lenyay · sans e-mail ni mot de passe</p>
+        <p class="sub">${esc(me.email || "Compte Lenyay")}</p>
       </div>
       <div class="bal-big"><b>${fmt(me.credits)}</b><span>crédits</span></div>
     </div>
@@ -527,10 +415,11 @@ async function openAccount(tab = "solde"){
       <button data-t="solde">Machines</button>
       <button data-t="gains">Crédits gagnés</button>
       <button data-t="depenses">Facturation</button>
-      <button data-t="cle">Ma clé</button>
+      <button data-t="cle">Mes machines & clé</button>
     </div>
     <div class="tabbody" id="acct-body"></div>
-    <button class="go" onclick="document.getElementById('dlg').close()">Fermer</button>`;
+    <button class="go" onclick="document.getElementById('dlg').close()">Fermer</button>
+    <button class="leave" id="do-logout">Se déconnecter</button>`;
 
   const views = {
     solde: devices,
@@ -539,8 +428,9 @@ async function openAccount(tab = "solde"){
       ? lines(depenses) + `<p class="empty">Aucun paiement : Lenyay ne facture pas
          d'argent. L'abonnement arrivera pour ceux qui préfèrent ne pas contribuer.</p>`
       : `<p class="empty">Aucune dépense pour l'instant.</p>`,
-    cle: `<p class="empty">Ta clé est ta seule identité. Conserve-la pour retrouver ton
-       compte depuis un autre navigateur — personne ne peut te la renvoyer.</p>
+    cle: `<p class="empty">Cette clé rattache une machine à ton compte : lance le worker
+       avec <code>LENYAY_ACCOUNT_KEY</code> et ses gains alimenteront ta bourse. Ce n'est
+       pas un mot de passe — ton identité, c'est ton e-mail.</p>
        <div class="key">${account.key}</div>`,
   };
   const show = t => {
@@ -549,6 +439,7 @@ async function openAccount(tab = "solde"){
       b.setAttribute("aria-selected", b.dataset.t === t));
   };
   $("acct-tabs").querySelectorAll("button").forEach(b => b.onclick = () => show(b.dataset.t));
+  $("do-logout").onclick = logout;
   show(tab);
   $("dlg").showModal();
 }
@@ -575,36 +466,14 @@ async function loadThreads(){
 }
 /* L'accueil : on montre le cycle plutôt que de le raconter. Sans lui, on n'a
    qu'un chatbot de plus — et personne ne comprend pourquoi prêter sa machine. */
+/* L'accueil reste nu : le chat d'abord. L'explication complète vit sur
+   /decouvrir, liée en haut de page et ici. */
 function blank(){
   $("turns").innerHTML = `
   <div class="welcome">
     <h1>Pose ta question au réseau.</h1>
-    <p>Elle sera traitée par l'ordinateur d'un membre — pas par un datacenter.</p>
-
-    <div class="cycle">
-      <h4>Comment ça tourne</h4>
-      <p class="cap">Un aller-retour entre voisins, pas un service qu'on achète.</p>
-      <div class="stage">
-        <div class="rail"></div>
-        <span class="pip q"></span><span class="pip a"></span><span class="pip n"></span>
-        <div class="node you">
-          <div class="ic">💬</div><div class="lb">toi</div>
-        </div>
-        <div class="node net">
-          <div class="ic">🕸️</div><div class="lb">le réseau</div>
-        </div>
-        <div class="node mate">
-          <div class="ic">💻</div><div class="lb">la machine<br>d'un membre</div>
-        </div>
-      </div>
-      <div class="legend">
-        <div class="l1"><i></i><span><b>Ta question part</b> et coûte quelques crédits.</span></div>
-        <div class="l2"><i></i><span><b>La réponse revient</b>, signée par la machine qui l'a produite.</span></div>
-        <div class="l3"><i></i><span><b>La nuit, ta machine travaille à son tour</b> — elle résout des
-          problèmes vérifiables et te recrédite. C'est ça qui rend le service gratuit.</span></div>
-      </div>
-    </div>
-
+    <p>Elle sera traitée par l'ordinateur d'un membre — pas par un datacenter.
+      <a class="learn" href="/decouvrir">Comprendre comment ça marche&nbsp;→</a></p>
     <div class="samples">
       <button>Explique-moi la photosynthèse simplement</button>
       <button>Écris un mot d'excuse à mon voisin</button>
@@ -696,7 +565,7 @@ function outOfCredits(detail){
       <li><b>Contribuer</b> — laisse Lenyay tourner : chaque calcul vérifié te recrédite.</li>
       <li><b>S'abonner</b> — bientôt, pour utiliser sans contribuer.</li>
     </ul>
-    <button class="go" onclick="document.getElementById('dlg').close();location.hash='#projet'">
+    <button class="go" onclick="document.getElementById('dlg').close();location.href='/decouvrir#participer'">
       Voir comment contribuer</button>`;
   $("dlg").showModal();
 }
@@ -734,6 +603,9 @@ $("copy").onclick = async e => {
   }catch(err){ e.target.textContent = "Ctrl+C"; }
 };
 
+// L'accueil s'affiche AVANT tout appel réseau : même hors ligne, le visiteur
+// doit comprendre où il est tombé et comment le réseau fonctionne.
+blank();
 loadTiers(); loadAccount(); net(); setInterval(net, 15000);
 </script>
 </body>

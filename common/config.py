@@ -109,6 +109,9 @@ WORKER_TIER = _env("TIER", "rapide")
 # Messages du fil transmis à la machine comme mémoire de la conversation.
 CONTEXT_MESSAGES = int(_env("CONTEXT_MESSAGES", "8"))
 
+# Tentatives de connexion par IP et par quart d'heure.
+LOGIN_LIMIT = int(_env("LOGIN_LIMIT", "10"))
+
 # --- Comptes et questions --------------------------------------------------
 # Crédits offerts à l'ouverture d'un compte : de quoi essayer l'IA sans rien
 # donner d'abord — c'est la promesse « gratuite » tenue dès la première minute.

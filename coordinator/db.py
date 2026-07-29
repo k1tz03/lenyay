@@ -30,6 +30,14 @@ CREATE TABLE IF NOT EXISTS accounts (
     created_at TEXT NOT NULL
 );
 
+-- Les sessions du site : un jeton par navigateur connecté, révocable.
+CREATE TABLE IF NOT EXISTS sessions (
+    token      TEXT PRIMARY KEY,
+    account_id TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_sessions_account ON sessions (account_id);
+
 -- Le registre : tout mouvement de crédits y laisse une trace justifiable.
 CREATE TABLE IF NOT EXISTS ledger (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -156,6 +164,15 @@ def init_db() -> None:
             conn.execute("ALTER TABLE devices ADD COLUMN account_id TEXT")
         if "tier" not in columns:
             conn.execute("ALTER TABLE devices ADD COLUMN tier TEXT DEFAULT 'rapide'")
+        # Les comptes nés « clé seule » précèdent la vraie authentification.
+        acc_columns = {r["name"] for r in conn.execute("PRAGMA table_info(accounts)")}
+        if "email" not in acc_columns:
+            conn.execute("ALTER TABLE accounts ADD COLUMN email TEXT")
+            conn.execute("ALTER TABLE accounts ADD COLUMN password_hash TEXT")
+        conn.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_accounts_email"
+            " ON accounts (email) WHERE email IS NOT NULL"
+        )
 
 
 _secret_cache: str | None = None
@@ -257,6 +274,63 @@ def create_account(handle: str, welcome_credits: int) -> tuple[str, str]:
         _write_ledger(conn, account_id, welcome_credits, "welcome",
                       "Crédits de bienvenue", welcome_credits)
     return account_id, api_key
+
+
+def create_user_account(handle: str, email: str, password_hash: str,
+                        welcome_credits: int) -> tuple[str, str] | None:
+    """Un vrai compte : e-mail unique, mot de passe haché. None si l'e-mail
+    est déjà pris — l'appelant décide du message."""
+    account_id = uuid.uuid4().hex
+    api_key = secrets.token_hex(24)
+    try:
+        with _connect() as conn:
+            conn.execute(
+                "INSERT INTO accounts (account_id, handle, api_key, credits,"
+                " created_at, email, password_hash) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (account_id, handle, api_key, welcome_credits, _now(),
+                 email, password_hash),
+            )
+            _write_ledger(conn, account_id, welcome_credits, "welcome",
+                          "Crédits de bienvenue", welcome_credits)
+    except sqlite3.IntegrityError:
+        return None
+    return account_id, api_key
+
+
+def account_for_email(email: str) -> sqlite3.Row | None:
+    with _connect() as conn:
+        return conn.execute(
+            "SELECT * FROM accounts WHERE email = ?", (email,)).fetchone()
+
+
+def set_password(account_id: str, password_hash: str) -> None:
+    with _connect() as conn:
+        conn.execute("UPDATE accounts SET password_hash = ? WHERE account_id = ?",
+                     (password_hash, account_id))
+
+
+# --- Sessions ---------------------------------------------------------------
+
+
+def create_session(account_id: str, token: str) -> None:
+    with _connect() as conn:
+        conn.execute(
+            "INSERT INTO sessions (token, account_id, created_at) VALUES (?, ?, ?)",
+            (token, account_id, _now()),
+        )
+
+
+def account_for_session(token: str) -> sqlite3.Row | None:
+    with _connect() as conn:
+        return conn.execute(
+            "SELECT a.* FROM sessions s JOIN accounts a ON a.account_id = s.account_id"
+            " WHERE s.token = ?", (token,),
+        ).fetchone()
+
+
+def delete_session(token: str) -> None:
+    with _connect() as conn:
+        conn.execute("DELETE FROM sessions WHERE token = ?", (token,))
 
 
 def ledger_entries(account_id: str, limit: int = 100) -> list[dict]:

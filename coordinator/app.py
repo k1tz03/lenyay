@@ -13,13 +13,16 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, Response
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from common import config
 from common.schemas import (  # noqa: F401 — l'API expose ces modèles
     AccountRequest,
+    AuthLoginRequest,
+    AuthRegisterRequest,
+    PasswordChangeRequest,
     AccountResponse,
     AccountState,
     AnswerSubmission,
@@ -43,7 +46,8 @@ from common.schemas import (
     Verdict,
     WorkBatch,
 )
-from coordinator import db, leases, limits, tasks
+from coordinator import auth, db, leases, limits, tasks
+from coordinator.about import ABOUT_HTML
 from coordinator.landing import LANDING_HTML
 from coordinator.verifier import verify
 
@@ -138,13 +142,24 @@ def _archive_accepted(
 # --- API -------------------------------------------------------------------
 
 
-def require_account(x_account_key: str | None = Header(default=None, alias="X-Account-Key")):
-    if not x_account_key:
-        raise HTTPException(status_code=401, detail="En-tête X-Account-Key manquant")
-    account = db.account_for_key(x_account_key)
-    if account is None:
-        raise HTTPException(status_code=401, detail="Compte inconnu")
-    return account
+_SESSION_COOKIE = "lenyay_session"
+
+
+def require_account(request: Request,
+                    x_account_key: str | None = Header(default=None, alias="X-Account-Key")):
+    """Deux portes : la session (navigateur) ou la clé (machines et scripts).
+    La clé n'est plus l'identité d'une personne — c'est un jeton d'API."""
+    if x_account_key:
+        account = db.account_for_key(x_account_key)
+        if account is None:
+            raise HTTPException(status_code=401, detail="Compte inconnu")
+        return account
+    token = request.cookies.get(_SESSION_COOKIE)
+    if token:
+        account = db.account_for_session(token)
+        if account is not None:
+            return account
+    raise HTTPException(status_code=401, detail="Connexion requise")
 
 
 @app.post("/devices/register", response_model=RegisterResponse)
@@ -288,6 +303,70 @@ def _submit_locked(payload: ResultsPayload, device, device_id: str) -> SubmitRes
     return SubmitResponse(verdicts=verdicts, credits_earned=earned, total_credits=total)
 
 
+# --- Authentification -------------------------------------------------------
+
+
+def _open_session(response, account_id: str) -> None:
+    token = auth.new_session_token()
+    db.create_session(account_id, token)
+    response.set_cookie(
+        _SESSION_COOKIE, token, httponly=True, samesite="lax",
+        max_age=30 * 24 * 3600, path="/",
+    )
+
+
+@app.post("/auth/register", response_model=AccountResponse)
+def auth_register(payload: AuthRegisterRequest, request: Request, response: Response):
+    client_ip = request.client.host if request.client else "inconnue"
+    if not limits.register_limiter.allow(f"acct:{client_ip}", config.REGISTER_LIMIT, 3600.0):
+        raise HTTPException(status_code=429, detail="Trop de comptes créés depuis cette adresse")
+    handle = payload.handle.strip() or "anonyme"
+    created = db.create_user_account(
+        handle, payload.email.strip().lower(),
+        auth.hash_password(payload.password), config.WELCOME_CREDITS,
+    )
+    if created is None:
+        raise HTTPException(status_code=409, detail="Un compte existe déjà avec cet e-mail")
+    account_id, api_key = created
+    _open_session(response, account_id)
+    logger.info("Nouveau compte : %s (%s…)", handle, account_id[:8])
+    return AccountResponse(account_id=account_id, account_key=api_key,
+                           handle=handle, credits=config.WELCOME_CREDITS)
+
+
+@app.post("/auth/login", response_model=AccountResponse)
+def auth_login(payload: AuthLoginRequest, request: Request, response: Response):
+    client_ip = request.client.host if request.client else "inconnue"
+    if not limits.register_limiter.allow(f"login:{client_ip}", config.LOGIN_LIMIT, 900.0):
+        raise HTTPException(status_code=429, detail="Trop de tentatives — réessaie plus tard")
+    account = db.account_for_email(payload.email.strip().lower())
+    # Toujours la même réponse, que l'e-mail existe ou non : on ne donne pas
+    # la liste de nos membres à qui essaie des adresses.
+    if account is None or not auth.verify_password(
+            payload.password, account["password_hash"] or ""):
+        raise HTTPException(status_code=401, detail="Identifiants incorrects")
+    _open_session(response, account["account_id"])
+    return AccountResponse(account_id=account["account_id"], account_key=account["api_key"],
+                           handle=account["handle"], credits=account["credits"])
+
+
+@app.post("/auth/logout")
+def auth_logout(request: Request, response: Response):
+    token = request.cookies.get(_SESSION_COOKIE)
+    if token:
+        db.delete_session(token)
+    response.delete_cookie(_SESSION_COOKIE, path="/")
+    return {"logged_out": True}
+
+
+@app.post("/auth/password")
+def auth_change_password(payload: PasswordChangeRequest, account=Depends(require_account)):
+    if not auth.verify_password(payload.current, account["password_hash"] or ""):
+        raise HTTPException(status_code=401, detail="Mot de passe actuel incorrect")
+    db.set_password(account["account_id"], auth.hash_password(payload.new))
+    return {"changed": True}
+
+
 # --- Comptes ---------------------------------------------------------------
 
 
@@ -313,11 +392,14 @@ def account_ledger(account=Depends(require_account)):
 
 @app.get("/accounts/me", response_model=AccountState)
 def account_state(account=Depends(require_account)):
+    keys = account.keys()
     return AccountState(
         handle=account["handle"],
         credits=account["credits"],
         devices=db.account_devices(account["account_id"]),
         questions=db.recent_questions(account["account_id"]),
+        email=account["email"] if "email" in keys else None,
+        account_key=account["api_key"],
     )
 
 
@@ -652,8 +734,14 @@ setInterval(tick, 4000);
 
 @app.get("/", response_class=HTMLResponse)
 def landing():
-    """La vitrine publique : ce que voit un visiteur qui découvre Lenyay."""
+    """L'application : le chat, nu. L'explication vit sur /decouvrir."""
     return LANDING_HTML
+
+
+@app.get("/decouvrir", response_class=HTMLResponse)
+def decouvrir():
+    """Tout ce qui raconte Lenyay — le cycle jour/nuit, les crédits, l'état réel."""
+    return ABOUT_HTML
 
 
 @app.get("/dashboard", response_class=HTMLResponse)

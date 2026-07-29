@@ -65,17 +65,37 @@ class TestLanding:
         response = client.get("/")
         assert response.status_code == 200
         html = response.text
-        # Ce qu'un visiteur doit trouver : la promesse, la preuve, la commande.
-        # Le message doit porter sur le produit (une IA gratuite), pas sur la
-        # mécanique interne ; et l'état réel doit être affiché sans flou.
-        for marker in ("Lenyay", "IA gratuite", "datacenter", "Disponible",
-                       "En construction", "--chat", "install.ps1", "install.sh",
-                       "/dashboard",
-                       # une application de conversation, pas une plaquette
-                       "/conversations", "/accounts", "/tiers", "crédits",
-                       "Nouvelle conversation", "abonn"):
+        # La racine est l'application : le chat, les comptes, et des liens en
+        # haut vers la page qui explique — pas de plaquette mélangée au produit.
+        for marker in ("Lenyay", "datacenter", "/conversations", "/accounts",
+                       "/tiers", "crédits", "Nouvelle conversation",
+                       "/decouvrir", "/dashboard", "Se connecter",
+                       "/auth/login", "/auth/register"):
             assert marker in html, marker
         # La page ne doit appeler aucun service tiers.
+        for tiers in ("googleapis", "gstatic", "cdn.", "googletagmanager"):
+            assert tiers not in html, tiers
+
+    def test_l_accueil_s_affiche_sans_attendre_le_reseau(self, client_and_answers):
+        """blank() doit être appelé au démarrage : sinon le visiteur arrive sur
+        une page vide et l'explication du cycle n'apparaît jamais."""
+        client, _ = client_and_answers
+        script = client.get("/").text.rsplit("<script>", 1)[1]
+        assert "\nblank();" in script
+
+    def test_la_page_decouvrir_raconte_tout(self, client_and_answers):
+        """L'explication vit sur sa propre page : le cycle jour/nuit animé, la
+        vraie trace, les crédits, l'état honnête et l'installation."""
+        client, _ = client_and_answers
+        response = client.get("/decouvrir")
+        assert response.status_code == 200
+        html = response.text
+        for marker in ("datacenter", "Le jour", "La nuit", "animateMotion",
+                       "gsm8k-train-0037", "Rapide", "Costaud",
+                       "71,5", "71,0", "Disponible", "En construction",
+                       "install.ps1", "install.sh", "--chat",
+                       "cryptomonnaie", "/dashboard"):
+            assert marker in html, marker
         for tiers in ("googleapis", "gstatic", "cdn.", "googletagmanager"):
             assert tiers not in html, tiers
 

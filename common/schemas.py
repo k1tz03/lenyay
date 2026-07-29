@@ -93,6 +93,26 @@ class AccountRequest(BaseModel):
     handle: str = Field(default="anonyme", max_length=40)
 
 
+# Regex volontairement simple : le vrai test d'un e-mail, c'est de s'en servir.
+_EMAIL = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
+
+
+class AuthRegisterRequest(BaseModel):
+    email: str = Field(pattern=_EMAIL, max_length=254)
+    password: str = Field(min_length=8, max_length=128)
+    handle: str = Field(default="anonyme", max_length=40)
+
+
+class AuthLoginRequest(BaseModel):
+    email: str = Field(max_length=254)
+    password: str = Field(max_length=128)
+
+
+class PasswordChangeRequest(BaseModel):
+    current: str = Field(max_length=128)
+    new: str = Field(min_length=8, max_length=128)
+
+
 class AccountResponse(BaseModel):
     account_id: str
     account_key: str
@@ -105,6 +125,9 @@ class AccountState(BaseModel):
     credits: int
     devices: list[dict]
     questions: list[dict]
+    email: str | None = None
+    # La clé n'identifie plus une personne : elle sert à rattacher des machines.
+    account_key: str = ""
 
 
 class AskRequest(BaseModel):
