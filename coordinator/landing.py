@@ -1,14 +1,16 @@
 """Page publique de Lenyay — la vitrine du 7 août.
 
-Parti pris : un observatoire nocturne. L'essaim travaille la nuit, chaque
-machine est un point de lumière. Encre profonde, vert-de-gris (la patine du
-cuivre, couleur des instruments anciens), parchemin chaud. Filets fins,
-petites capitales, chiffres tabulaires : un panneau d'instrument, pas une
-plaquette commerciale — parce que le sujet, ici, c'est la mesure honnête.
+Le produit, c'est une IA gratuite qui ne tourne dans aucun datacenter. Le reste
+— les problèmes de mathématiques, la vérification, les crédits — n'est que la
+mécanique qui la rend possible. La page s'organise donc autour d'un troc :
+ce que tu prêtes, ce que tu reçois.
 
-Une seule page, aucun framework, aucune étape de construction. Les polices
-sont hébergées avec le site (aucun appel à un CDN tiers : la page ne doit
-rien envoyer nulle part, comme le worker).
+Règle de la maison : on n'annonce que ce qui marche. Ce qui est en chantier est
+écrit comme tel, séparément. C'est ce qui rendra crédible le jour où l'accès au
+grand modèle sera là.
+
+Une seule page, aucun framework, aucune étape de construction. La police est
+hébergée avec le site (aucun appel à un CDN tiers).
 """
 
 LANDING_HTML = """<!doctype html>
@@ -16,367 +18,304 @@ LANDING_HTML = """<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Lenyay — un modèle d'IA entretenu par nos machines</title>
-<meta name="description" content="Réseau de calcul coopératif : nos ordinateurs résolvent des problèmes vérifiables la nuit, et le modèle qui en sort appartient à tout le monde.">
-<meta name="color-scheme" content="dark">
+<title>Lenyay — une IA gratuite, sans datacenter</title>
+<meta name="description" content="Une IA qui tourne sur nos machines, pas dans un datacenter. Prête ton ordinateur quand tu ne t'en sers pas, utilise l'IA quand tu veux.">
+<meta name="color-scheme" content="light">
 <style>
-@font-face {
-  font-family: "Fraunces"; font-style: normal; font-weight: 300 700;
-  font-display: swap; src: url("/static/fonts/fraunces-latin.woff2") format("woff2");
+@font-face{
+  font-family:"Familjen"; font-style:normal; font-weight:400 700; font-display:swap;
+  src:url("/static/fonts/familjen-latin.woff2") format("woff2");
 }
-@font-face {
-  font-family: "Plex Mono"; font-style: normal; font-weight: 400;
-  font-display: swap; src: url("/static/fonts/plexmono-latin.woff2") format("woff2");
-}
-
 :root{
-  --ink:#070c0b; --ink-2:#0c1413; --ink-3:#111c1a;
-  --line:#1e2e2b; --line-bright:#2b4340;
-  --verd:#74bda7; --verd-deep:#3f7a6c; --verd-glow:rgba(116,189,167,.14);
-  --parch:#ece7db; --muted:#8ba099; --copper:#c98a55;
-  --serif:"Fraunces", "Iowan Old Style", Georgia, serif;
-  --mono:"Plex Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
+  --paper:#F7F4EE; --paper-2:#EFEBE2;
+  --ink:#2C3A31; --ink-soft:#71806F; --rule:#DAD4C7;
+  --grow:#3C7F58; --amber:#C97F1E; --amber-soft:#F0E2C6;
+  --ui:"Familjen", "Avenir Next", system-ui, sans-serif;
+  --mono:ui-monospace, SFMono-Regular, "Cascadia Mono", Consolas, monospace;
 }
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
-body{
-  margin:0; background:var(--ink); color:var(--parch);
-  font-family:var(--serif); font-size:17px; line-height:1.65;
-  font-variation-settings:"SOFT" 20, "WONK" 1;
-  -webkit-font-smoothing:antialiased;
+body{margin:0; background:var(--paper); color:var(--ink); font-family:var(--ui);
+  font-size:17.5px; line-height:1.6; -webkit-font-smoothing:antialiased}
+@media (prefers-reduced-motion:reduce){ html{scroll-behavior:auto} }
+.wrap{max-width:960px; margin:0 auto; padding:0 clamp(1.2rem,4vw,2rem)}
+a{color:inherit}
+
+.top{display:flex; align-items:baseline; gap:.9rem; padding:1.1rem 0;
+     font-size:.86rem; color:var(--ink-soft)}
+.top b{font-size:1.05rem; color:var(--ink); font-weight:700; letter-spacing:-.01em}
+.top nav{margin-left:auto; display:flex; gap:1.2rem}
+.top nav a{text-decoration:none; color:var(--ink-soft)}
+.top nav a:hover{color:var(--ink); text-decoration:underline; text-underline-offset:4px}
+@media (max-width:640px){ .top .opt{display:none} }
+
+/* ---- La promesse ---------------------------------------------------- */
+.hero{padding:clamp(2rem,6vw,4rem) 0 clamp(2.5rem,6vw,3.5rem)}
+h1{font-size:clamp(2.1rem,5.6vw,3.6rem); line-height:1.08; font-weight:700;
+   letter-spacing:-.032em; margin:0 0 1.1rem; max-width:17ch}
+h1 mark{background:linear-gradient(180deg,transparent 62%, var(--amber-soft) 62%);
+  color:inherit; padding:0 .06em}
+.lede{font-size:clamp(1.08rem,2.1vw,1.28rem); max-width:56ch; margin:0; color:#41504a}
+
+/* ---- Le troc --------------------------------------------------------- */
+.deal{display:grid; grid-template-columns:1fr auto 1fr; gap:clamp(1rem,3vw,2rem);
+  align-items:stretch; margin:clamp(2rem,5vw,3rem) 0 0}
+.side{border:1px solid var(--rule); border-radius:4px; padding:1.5rem 1.6rem;
+  background:var(--paper-2)}
+.side.get{background:var(--paper); border-color:var(--ink); border-width:2px}
+.side .role{font-size:.78rem; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--ink-soft); margin:0 0 .8rem}
+.side h2{font-size:1.32rem; font-weight:700; letter-spacing:-.02em; margin:0 0 .7rem}
+.side ul{margin:0; padding:0; list-style:none; display:grid; gap:.55rem;
+  color:#41504a; font-size:1rem}
+.side li{display:flex; gap:.6rem}
+.side li::before{content:"·"; color:var(--grow); font-weight:700}
+.swap{display:grid; place-items:center; color:var(--ink-soft)}
+.swap svg{width:34px; height:34px}
+@media (max-width:760px){
+  .deal{grid-template-columns:1fr}
+  .swap{transform:rotate(90deg); padding:.2rem 0}
 }
-/* Grain : une texture de papier photographique, presque invisible. */
-body::after{
-  content:""; position:fixed; inset:0; pointer-events:none; z-index:99; opacity:.028;
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
-}
-.wrap{max-width:1080px; margin:0 auto; padding:0 clamp(1.1rem, 4vw, 2.5rem)}
 
-/* --- Reveal au chargement ------------------------------------------- */
-.rise{opacity:0; transform:translateY(14px); animation:rise .9s cubic-bezier(.2,.7,.3,1) forwards}
-@keyframes rise{to{opacity:1; transform:none}}
-@media (prefers-reduced-motion:reduce){
-  .rise{animation:none; opacity:1; transform:none}
-  html{scroll-behavior:auto}
-}
+/* ---- État réel -------------------------------------------------------- */
+section{padding:clamp(3rem,7vw,4.6rem) 0; border-top:1px solid var(--rule)}
+.tag{font-size:.78rem; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--ink-soft); margin:0 0 .9rem}
+h3{font-size:clamp(1.4rem,3.2vw,1.9rem); line-height:1.2; font-weight:700;
+  letter-spacing:-.02em; margin:0 0 .7rem; max-width:24ch}
+.note{color:var(--ink-soft); max-width:62ch; margin:0}
+.note + .note{margin-top:.9rem}
 
-/* --- En-tête --------------------------------------------------------- */
-header{
-  position:sticky; top:0; z-index:20; backdrop-filter:blur(8px);
-  background:linear-gradient(180deg, rgba(7,12,11,.94), rgba(7,12,11,.72));
-  border-bottom:1px solid var(--line);
-}
-header .wrap{display:flex; align-items:center; gap:1.2rem; padding-block:.85rem}
-.brand{font-size:1.12rem; letter-spacing:.055em; font-weight:600;
-       font-variation-settings:"SOFT" 0,"WONK" 1}
-.brand .dot{color:var(--verd)}
-header nav{margin-left:auto; display:flex; gap:1.4rem; font-family:var(--mono);
-           font-size:.74rem; letter-spacing:.11em; text-transform:uppercase}
-header nav a{color:var(--muted); text-decoration:none; transition:color .25s}
-header nav a:hover{color:var(--verd)}
-@media (max-width:620px){ header nav a.opt{display:none} }
+.state{display:grid; gap:1.5rem; grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+  margin-top:1.9rem}
+.state h4{margin:0 0 .7rem; font-size:1.02rem; display:flex; align-items:center; gap:.55rem}
+.state .pill{font-size:.7rem; letter-spacing:.09em; text-transform:uppercase;
+  padding:.12rem .5rem; border-radius:2px; font-weight:600}
+.state .yes .pill{background:var(--grow); color:#fff}
+.state .soon .pill{background:var(--amber-soft); color:var(--amber);
+  border:1px solid var(--amber)}
+.state ul{margin:0; padding:0; list-style:none; display:grid; gap:.5rem;
+  color:#41504a; font-size:1rem}
+.state li{display:flex; gap:.6rem}
+.state .yes li::before{content:"✓"; color:var(--grow); font-weight:700}
+.state .soon li::before{content:"→"; color:var(--amber)}
 
-/* --- Héros ----------------------------------------------------------- */
-.hero{position:relative; padding:clamp(4rem,11vw,8.5rem) 0 clamp(3rem,7vw,5rem); overflow:hidden}
-#sky{position:absolute; inset:0; width:100%; height:100%; z-index:0; opacity:.5}
-.hero .wrap{position:relative; z-index:1}
-.eyebrow{font-family:var(--mono); font-size:.75rem; letter-spacing:.2em;
-         text-transform:uppercase; color:var(--verd); margin:0 0 1.6rem}
-.eyebrow::before{content:""; display:inline-block; width:2.2rem; height:1px;
-  background:var(--verd-deep); vertical-align:middle; margin-right:.8rem}
-h1{
-  font-size:clamp(2.7rem, 7.4vw, 5.3rem); line-height:1.02; margin:0 0 1.5rem;
-  font-weight:400; letter-spacing:-.022em; max-width:16ch;
-  font-variation-settings:"SOFT" 0,"WONK" 1,"opsz" 120;
-}
-h1 em{font-style:italic; color:var(--verd)}
-.lede{font-size:clamp(1.05rem,2vw,1.28rem); color:#c9d3ce; max-width:56ch; margin:0 0 2.6rem}
-.cta{display:flex; gap:.9rem; flex-wrap:wrap; align-items:center}
-.btn{
-  display:inline-flex; align-items:center; gap:.6rem; padding:.8rem 1.5rem;
-  border-radius:2px; font-family:var(--mono); font-size:.82rem; letter-spacing:.06em;
-  text-decoration:none; border:1px solid var(--verd-deep); color:var(--ink);
-  background:var(--verd); transition:transform .2s, box-shadow .25s, background .25s;
-}
-.btn:hover{transform:translateY(-2px); box-shadow:0 10px 30px -12px var(--verd)}
-.btn.ghost{background:transparent; color:var(--parch); border-color:var(--line-bright)}
-.btn.ghost:hover{border-color:var(--verd); color:var(--verd); box-shadow:none}
+/* ---- Mécanique (volontairement discrète) ------------------------------ */
+.why{background:var(--paper-2); border-left:3px solid var(--rule);
+  padding:1.2rem 1.4rem; border-radius:0 4px 4px 0; max-width:68ch; margin-top:1.6rem}
+.why p{margin:0; color:#41504a}
+.why p + p{margin-top:.7rem}
+.why a{text-decoration-color:var(--amber); text-underline-offset:3px}
 
-/* --- Bandeau de mesures --------------------------------------------- */
-.readout{
-  margin-top:clamp(3rem,7vw,4.5rem); border:1px solid var(--line);
-  background:linear-gradient(180deg, var(--ink-2), rgba(12,20,19,.35));
-  display:grid; grid-template-columns:repeat(auto-fit, minmax(150px,1fr));
-}
-.readout div{padding:1.35rem 1.5rem; border-right:1px solid var(--line)}
-.readout div:last-child{border-right:none}
-.readout b{
-  display:block; font-family:var(--mono); font-size:1.75rem; font-weight:400;
-  color:var(--verd); font-variant-numeric:tabular-nums; line-height:1.15;
-}
-.readout span{font-family:var(--mono); font-size:.68rem; letter-spacing:.13em;
-  text-transform:uppercase; color:var(--muted)}
-.pulse{display:inline-block; width:.4rem; height:.4rem; border-radius:50%;
-  background:var(--verd); margin-right:.45rem; vertical-align:middle;
-  animation:beat 2.6s ease-in-out infinite}
-@keyframes beat{0%,100%{opacity:1}50%{opacity:.25}}
-@media (max-width:640px){ .readout div{border-right:none; border-bottom:1px solid var(--line)} }
+/* ---- Participer ------------------------------------------------------- */
+.os{display:flex; gap:1.2rem; margin:1.7rem 0 .7rem; font-size:.92rem}
+.os button{background:none; border:none; padding:0 0 3px; cursor:pointer;
+  color:var(--ink-soft); font:inherit; border-bottom:2px solid transparent}
+.os button[aria-selected="true"]{color:var(--ink); border-color:var(--amber); font-weight:600}
+.cmd{display:flex; border:1px solid var(--rule); border-radius:3px; background:var(--paper-2);
+  overflow:hidden; max-width:680px}
+.cmd code{font-family:var(--mono); font-size:.88rem; padding:.9rem 1rem; flex:1;
+  overflow-x:auto; white-space:nowrap}
+.cmd button{font:inherit; font-size:.85rem; font-weight:600; padding:0 1.1rem;
+  cursor:pointer; background:var(--ink); color:var(--paper); border:none}
+.cmd button:hover{background:var(--grow)}
+.then{margin:1.5rem 0 0; padding:1.1rem 1.3rem; border:1px dashed var(--rule);
+  border-radius:4px; max-width:680px; background:var(--paper)}
+.then p{margin:0 0 .6rem; font-weight:600}
+.then code{font-family:var(--mono); font-size:.86rem; background:var(--paper-2);
+  padding:.25rem .5rem; border-radius:3px; border:1px solid var(--rule)}
+.then span{display:block; color:var(--ink-soft); font-size:.95rem; margin-top:.5rem}
+.after{color:var(--ink-soft); font-size:.96rem; margin:1.1rem 0 0; max-width:62ch}
+.after a{text-decoration-color:var(--amber); text-underline-offset:3px}
 
-/* --- Sections -------------------------------------------------------- */
-section{padding:clamp(3.5rem,8vw,6.5rem) 0; border-top:1px solid var(--line)}
-.num{font-family:var(--mono); font-size:.72rem; letter-spacing:.2em; color:var(--verd-deep);
-     text-transform:uppercase; margin:0 0 .9rem}
-h2{font-size:clamp(1.7rem,3.6vw,2.5rem); line-height:1.15; font-weight:400;
-   margin:0 0 1.1rem; letter-spacing:-.015em; max-width:22ch;
-   font-variation-settings:"SOFT" 0,"WONK" 1}
-.intro{color:#bdc9c4; max-width:62ch; margin:0 0 2.8rem}
+.pledge{margin:1.5rem 0 0; padding:0; list-style:none; display:grid; gap:.5rem; max-width:62ch}
+.pledge li{display:flex; gap:.7rem}
+.pledge li::before{content:"non"; flex:none; font-size:.7rem; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--amber); border:1px solid var(--amber);
+  border-radius:2px; padding:0 .3rem; height:1.2rem; line-height:1.15rem; margin-top:.24rem}
 
-.steps{display:grid; gap:1px; background:var(--line); border:1px solid var(--line);
-       grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}
-.steps article{background:var(--ink); padding:1.7rem 1.6rem}
-.steps h3{font-size:1.06rem; font-weight:600; margin:.7rem 0 .55rem;
-          font-variation-settings:"SOFT" 0,"WONK" 1}
-.steps p{margin:0; color:var(--muted); font-size:.96rem}
-.steps .k{font-family:var(--mono); font-size:.72rem; color:var(--verd); letter-spacing:.14em}
+.live{display:flex; gap:1.6rem; flex-wrap:wrap; margin-top:1.6rem; font-size:.95rem;
+  color:var(--ink-soft)}
+.live b{color:var(--ink); font-variant-numeric:tabular-nums; font-weight:700}
 
-/* --- La preuve ------------------------------------------------------- */
-.proof{display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--line);
-       border:1px solid var(--line); margin-bottom:1.6rem}
-.proof div{background:var(--ink-2); padding:1.8rem}
-.proof .label{font-family:var(--mono); font-size:.7rem; letter-spacing:.14em;
-  text-transform:uppercase; color:var(--muted); margin-bottom:.5rem}
-.proof .val{font-family:var(--mono); font-size:2.6rem; color:var(--parch);
-  font-variant-numeric:tabular-nums; line-height:1}
-.proof .val small{font-size:.9rem; color:var(--muted); margin-left:.5rem}
-.proof div.now .val{color:var(--verd)}
-@media (max-width:560px){ .proof{grid-template-columns:1fr} }
-.note{border-left:2px solid var(--copper); padding:.2rem 0 .2rem 1.2rem;
-      color:#c9d3ce; max-width:64ch}
-.note strong{color:var(--parch); font-weight:600}
-
-/* --- Rejoindre ------------------------------------------------------- */
-.tabs{display:flex; gap:.4rem; margin-bottom:.9rem}
-.tab{font-family:var(--mono); font-size:.74rem; letter-spacing:.1em; padding:.5rem 1rem;
-  background:transparent; color:var(--muted); border:1px solid var(--line);
-  border-radius:2px; cursor:pointer; transition:.2s}
-.tab[aria-selected="true"]{color:var(--verd); border-color:var(--verd-deep);
-  background:var(--verd-glow)}
-.cmd{display:flex; align-items:stretch; border:1px solid var(--line-bright);
-     background:var(--ink-2); border-radius:2px; overflow:hidden}
-.cmd code{font-family:var(--mono); font-size:.86rem; padding:1.05rem 1.2rem; flex:1;
-  overflow-x:auto; white-space:nowrap; color:var(--parch)}
-.cmd code::before{content:"$ "; color:var(--verd-deep)}
-.cmd button{font-family:var(--mono); font-size:.72rem; letter-spacing:.1em; padding:0 1.3rem;
-  background:var(--ink-3); color:var(--muted); border:none; border-left:1px solid var(--line);
-  cursor:pointer; transition:.2s; text-transform:uppercase}
-.cmd button:hover{color:var(--verd)}
-.after{color:var(--muted); font-size:.95rem; margin-top:1rem}
-
-/* --- Garanties ------------------------------------------------------- */
-.nots{list-style:none; padding:0; margin:0; display:grid; gap:.15rem;
-      grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
-.nots li{padding:.7rem 0 .7rem 1.9rem; position:relative; color:#c4cfca; font-size:.98rem}
-.nots li::before{content:"—"; position:absolute; left:0; color:var(--verd-deep);
-                 font-family:var(--mono)}
-
-footer{border-top:1px solid var(--line); padding:2.6rem 0 3.4rem; color:var(--muted);
-       font-family:var(--mono); font-size:.76rem; letter-spacing:.05em}
-footer .wrap{display:flex; gap:1.4rem; flex-wrap:wrap; align-items:center}
-footer a{color:var(--muted); text-decoration:none; border-bottom:1px solid var(--line-bright)}
-footer a:hover{color:var(--verd)}
+footer{border-top:1px solid var(--rule); padding:2rem 0 3rem; color:var(--ink-soft);
+  font-size:.9rem}
+footer .wrap{display:flex; gap:1.3rem; flex-wrap:wrap}
 footer .right{margin-left:auto}
 </style>
 </head>
 <body>
 
-<header>
-  <div class="wrap">
-    <span class="brand">Lenyay<span class="dot">.</span></span>
+<div class="wrap">
+  <div class="top">
+    <b>Lenyay</b>
+    <span class="opt">se prononce « leny-ay »</span>
     <nav>
-      <a href="#principe">Le principe</a>
-      <a href="#preuve" class="opt">La preuve</a>
-      <a href="#rejoindre">Rejoindre</a>
-      <a href="/dashboard">Tableau de bord</a>
+      <a href="#etat">Où on en est</a>
+      <a href="#mecanique" class="opt">Comment ça marche</a>
+      <a href="/dashboard" class="opt">Le réseau</a>
+      <a href="#participer">Participer</a>
     </nav>
   </div>
-</header>
 
-<div class="hero">
-  <canvas id="sky" aria-hidden="true"></canvas>
-  <div class="wrap">
-    <p class="eyebrow rise" style="animation-delay:.05s">Réseau de calcul coopératif</p>
-    <h1 class="rise" style="animation-delay:.15s">Nos machines entretiennent un modèle <em>commun</em>.</h1>
-    <p class="lede rise" style="animation-delay:.28s">
-      La nuit, pendant que ton ordinateur ne sert à rien, il résout des problèmes de
-      mathématiques. Chaque solution est vérifiée, archivée, et sert à améliorer un
-      modèle d'IA qui n'appartient à personne — donc à tout le monde.
+  <div class="hero">
+    <h1>Une IA gratuite qui ne tourne dans <mark>aucun datacenter</mark>.</h1>
+    <p class="lede">Elle tourne sur nos ordinateurs. Tu prêtes le tien quand tu ne t'en
+      sers pas — la nuit, par exemple — et tu utilises l'IA quand ça t'arrange.
+      Sans abonnement, sans compte, sans envoyer tes questions à qui que ce soit.</p>
+
+    <div class="deal">
+      <div class="side">
+        <p class="role">Tu prêtes</p>
+        <h2>Du temps de calcul inutilisé</h2>
+        <ul>
+          <li>Un cœur de processeur pendant que ta machine ne fait rien</li>
+          <li>Tu lances et tu arrêtes quand tu veux, rien ne démarre tout seul</li>
+          <li>Aucune donnée personnelle : ta machine reçoit des calculs publics</li>
+        </ul>
+      </div>
+      <div class="swap" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 9h15l-3.5-3.5M20 15H5l3.5 3.5"/>
+        </svg>
+      </div>
+      <div class="side get">
+        <p class="role">Tu reçois</p>
+        <h2>L'IA, gratuitement</h2>
+        <ul>
+          <li>Elle s'installe avec le reste et répond sur ta machine, hors ligne</li>
+          <li>Des crédits qui s'accumulent à chaque calcul vérifié</li>
+          <li>Un modèle qui s'améliore avec ce que le réseau produit</li>
+        </ul>
+      </div>
+    </div>
+
+    <p class="live">
+      <span>Aujourd'hui&nbsp;: <b id="s-devices">—</b> machines</span>
+      <span><b id="s-done">—</b> calculs vérifiés</span>
+      <span><b id="s-rate">—</b> de réussite</span>
     </p>
-    <div class="cta rise" style="animation-delay:.4s">
-      <a class="btn" href="#rejoindre">Rejoindre l'essaim</a>
-      <a class="btn ghost" href="/dashboard">Voir l'essaim en direct</a>
-    </div>
-
-    <div class="readout rise" style="animation-delay:.55s">
-      <div><b id="s-rollouts">—</b><span>rollouts vérifiés</span></div>
-      <div><b id="s-devices">—</b><span><i class="pulse"></i>appareils</span></div>
-      <div><b id="s-rate">—</b><span>taux d'acceptation</span></div>
-      <div><b id="s-tasks">—</b><span>problèmes au catalogue</span></div>
-    </div>
   </div>
 </div>
 
-<section id="principe">
+<section id="etat">
   <div class="wrap">
-    <p class="num">01 — Le principe</p>
-    <h2>Un travail que l'on peut vérifier.</h2>
-    <p class="intro">
-      Tout repose sur une idée simple : nous ne distribuons que des problèmes dont la
-      réponse est vérifiable. Impossible de tricher, impossible de se tromper sur ce
-      qui a réellement été produit.
-    </p>
-    <div class="steps">
-      <article>
-        <span class="k">01</span>
-        <h3>Ta machine reçoit un problème</h3>
-        <p>Un énoncé de mathématiques, et rien d'autre. Jamais la réponse — elle reste
-        au serveur. Ta machine ne peut être créditée qu'en résolvant vraiment.</p>
-      </article>
-      <article>
-        <span class="k">02</span>
-        <h3>Un petit modèle raisonne</h3>
-        <p>Il tourne chez toi, hors ligne, sur ton processeur. Il écrit son raisonnement
-        pas à pas et propose un résultat.</p>
-      </article>
-      <article>
-        <span class="k">03</span>
-        <h3>Le raisonnement est archivé</h3>
-        <p>Si la réponse est juste, la trace rejoint un corpus ouvert. C'est avec lui
-        que l'on entraîne la version suivante du modèle.</p>
-      </article>
+    <p class="tag">Où on en est vraiment</p>
+    <h3>On n'annonce que ce qui marche.</h3>
+    <p class="note">Lenyay se construit en public. Voici ce que tu obtiens en installant
+      aujourd'hui, et ce sur quoi nous travaillons — pas de flou entre les deux.</p>
+
+    <div class="state">
+      <div class="yes">
+        <h4><span class="pill">Disponible</span></h4>
+        <ul>
+          <li>L'IA répond sur ta machine, gratuitement, sans connexion</li>
+          <li>Tes questions ne quittent jamais ton ordinateur</li>
+          <li>Tes crédits sont comptés et visibles sur le tableau de bord</li>
+          <li>Le réseau tourne, le modèle est réentraîné avec ce qu'il produit</li>
+        </ul>
+      </div>
+      <div class="soon">
+        <h4><span class="pill">En construction</span></h4>
+        <ul>
+          <li>Dépenser ses crédits pour interroger un modèle plus grand, servi par le réseau</li>
+          <li>Participer depuis un téléphone Android</li>
+          <li>Choisir d'autres travaux utiles que les mathématiques</li>
+        </ul>
+      </div>
     </div>
   </div>
 </section>
 
-<section id="preuve">
+<section id="mecanique">
   <div class="wrap">
-    <p class="num">02 — La preuve</p>
-    <h2>Ce que ça donne, sans arrondir.</h2>
-    <p class="intro">
-      Un jeu de 200 problèmes est mis de côté et n'est jamais distribué à l'essaim.
-      Chaque version du modèle y est évaluée dans des conditions identiques.
-      Voici les chiffres — y compris quand ils ne nous arrangent pas.
-    </p>
-    <div class="proof">
-      <div>
-        <p class="label">v0.1 — modèle d'origine</p>
-        <p class="val">71,5 %<small>143 / 200</small></p>
-      </div>
-      <div class="now">
-        <p class="label">v0.2 — après notre premier entraînement</p>
-        <p class="val">71,0 %<small>142 / 200</small></p>
-      </div>
+    <p class="tag">La mécanique</p>
+    <h3>Pourquoi ta machine fait des mathématiques.</h3>
+    <div class="why">
+      <p>Pour qu'un réseau d'inconnus produise quelque chose de fiable, il faut pouvoir
+        <strong>vérifier</strong> chaque contribution. Les problèmes de mathématiques ont
+        cette vertu : la réponse est juste ou fausse, sans discussion. Ta machine en reçoit
+        un, écrit son raisonnement, et le serveur contrôle le résultat — la réponse
+        attendue ne quitte jamais le serveur, donc personne ne peut tricher.</p>
+      <p>Les raisonnements justes forment un corpus commun, avec lequel on entraîne la
+        version suivante du modèle. Les mathématiques ne sont qu'un premier terrain : tout
+        travail vérifiable fera l'affaire. C'est la vérification qui compte, pas le sujet.
+        <a href="/dashboard">Voir le réseau en direct</a>.</p>
     </div>
-    <p class="note">
-      <strong>Le premier essai n'a rien amélioré</strong> — et c'est instructif. Nous avions
-      entraîné le modèle sur les problèmes qu'il savait déjà résoudre : il a réappris ce
-      qu'il connaissait. L'essaim chasse désormais les problèmes qu'il <em>rate</em>, car ce
-      sont les solutions durement gagnées qui apprennent quelque chose. Le prochain
-      chiffre publié ici sera obtenu de la même manière, quel qu'il soit.
-    </p>
   </div>
 </section>
 
-<section id="rejoindre">
+<section id="participer">
   <div class="wrap">
-    <p class="num">03 — Rejoindre</p>
-    <h2>Une commande, puis tu oublies.</h2>
-    <p class="intro">
-      L'installation prend deux à cinq minutes. Rien ne s'installe hors de son dossier,
-      aucun droit administrateur n'est demandé, et tu arrêtes quand tu veux.
-    </p>
-    <div class="tabs" role="tablist">
-      <button class="tab" role="tab" aria-selected="true" data-os="win">Windows</button>
-      <button class="tab" role="tab" aria-selected="false" data-os="nix">Linux / macOS</button>
+    <p class="tag">Participer</p>
+    <h3>Une commande, cinq minutes.</h3>
+    <p class="note">Rien ne s'installe hors de son dossier, aucun mot de passe n'est
+      demandé, et désinstaller revient à supprimer un dossier.</p>
+
+    <div class="os" role="tablist">
+      <button role="tab" aria-selected="true" data-os="win">Windows</button>
+      <button role="tab" aria-selected="false" data-os="nix">Linux / macOS</button>
     </div>
     <div class="cmd">
       <code id="cmd-text">irm https://lenyay.org/install.ps1 | iex</code>
       <button id="copy" type="button">Copier</button>
     </div>
-    <p class="after">
-      Un raccourci apparaît sur ton bureau. Au premier lancement, le modèle se télécharge
-      une fois (environ 1,1 Go), puis ta machine se met au travail.
-      <a href="https://github.com/k1tz03/lenyay/blob/main/REJOINDRE.md" style="color:var(--verd)">Guide complet et questions fréquentes</a>.
-    </p>
-  </div>
-</section>
 
-<section>
-  <div class="wrap">
-    <p class="num">04 — Garanties</p>
-    <h2>Ce que Lenyay ne fait pas.</h2>
-    <ul class="nots">
-      <li>Aucune cryptomonnaie, aucun minage.</li>
-      <li>Aucune donnée personnelle envoyée : ton appareil est un numéro.</li>
-      <li>Aucun démarrage automatique : tu lances, tu arrêtes.</li>
-      <li>Aucune publicité, aucun traceur sur cette page.</li>
-      <li>Les crédits comptent ta contribution ; ils ne s'échangent pas et ne valent pas d'argent.</li>
-      <li>Le code est ouvert et lisible, de bout en bout.</li>
+    <div class="then">
+      <p>Ensuite, pour parler à l'IA :</p>
+      <code id="chat-cmd">lenyay --chat</code>
+      <span>Elle répond sur ta machine, sans connexion. Pour contribuer, lance
+        simplement Lenyay sans option — ou double-clique le raccourci.</span>
+    </div>
+
+    <p class="after">Au premier démarrage, le modèle se télécharge une fois (1,1 Go).
+      <a href="https://github.com/k1tz03/lenyay/blob/main/REJOINDRE.md">Guide complet et questions fréquentes</a>.</p>
+
+    <ul class="pledge">
+      <li>de cryptomonnaie, ni de minage.</li>
+      <li>de donnée personnelle : ta machine est un numéro.</li>
+      <li>de démarrage automatique dans ton dos.</li>
+      <li>de publicité, ni de traceur sur cette page.</li>
+      <li>de crédits échangeables : ils comptent ta contribution, ils ne valent pas d'argent.</li>
     </ul>
   </div>
 </section>
 
 <footer>
   <div class="wrap">
-    <span>Lenyay — bien commun</span>
-    <a href="https://github.com/k1tz03/lenyay">Code source</a>
-    <a href="/dashboard">Tableau de bord</a>
-    <span class="right">Prononcer « leny-ay »</span>
+    <span>Lenyay — un bien commun</span>
+    <a href="https://github.com/k1tz03/lenyay">Le code, entièrement ouvert</a>
+    <a href="/dashboard">Le réseau en direct</a>
+    <span class="right">Construit en public</span>
   </div>
 </footer>
 
 <script>
-// --- Mesures en direct ---------------------------------------------------
 const fmt = n => n.toLocaleString("fr-FR");
 async function readStats(){
   try{
     const r = await fetch("/stats", {cache:"no-store"});
     if(!r.ok) return;
     const s = await r.json();
-    countTo("s-rollouts", s.accepted_rollouts);
-    countTo("s-devices", s.devices_seen);
-    countTo("s-tasks", s.tasks_in_catalog);
-    document.getElementById("s-rate").textContent =
-      (100 * s.acceptance_rate).toFixed(1).replace(".", ",") + " %";
+    document.getElementById("s-devices").textContent = fmt(s.devices_seen);
+    document.getElementById("s-done").textContent = fmt(s.accepted_rollouts);
+    document.getElementById("s-rate").textContent = (100 * s.acceptance_rate).toFixed(0) + " %";
   }catch(e){ /* la page reste lisible sans les chiffres */ }
 }
-// Petit compteur qui monte. La valeur est posée AVANT l'animation : dans un
-// onglet en arrière-plan, requestAnimationFrame ne se déclenche jamais et le
-// chiffre resterait sinon indéfiniment vide.
-function countTo(id, value){
-  const el = document.getElementById(id);
-  el.textContent = fmt(value);
-  if(matchMedia("(prefers-reduced-motion: reduce)").matches || document.hidden) return;
-  const start = performance.now(), dur = 1100;
-  const step = now => {
-    const t = Math.min(1, (now - start) / dur);
-    el.textContent = fmt(Math.round(value * (1 - Math.pow(1 - t, 3))));
-    if(t < 1) requestAnimationFrame(step);
-  };
-  requestAnimationFrame(step);
-}
-readStats();
-setInterval(readStats, 15000);
+readStats(); setInterval(readStats, 15000);
 
-// --- Commande d'installation --------------------------------------------
 const COMMANDS = {
   win: "irm https://lenyay.org/install.ps1 | iex",
   nix: "curl -fsSL https://lenyay.org/install.sh | bash",
 };
-document.querySelectorAll(".tab").forEach(tab => {
-  tab.addEventListener("click", () => {
-    document.querySelectorAll(".tab").forEach(t => t.setAttribute("aria-selected", "false"));
-    tab.setAttribute("aria-selected", "true");
-    document.getElementById("cmd-text").textContent = COMMANDS[tab.dataset.os];
+const CHAT = { win: "lenyay --chat", nix: "~/.lenyay/lenyay --chat" };
+document.querySelectorAll(".os button").forEach(b => {
+  b.addEventListener("click", () => {
+    document.querySelectorAll(".os button").forEach(o => o.setAttribute("aria-selected","false"));
+    b.setAttribute("aria-selected","true");
+    document.getElementById("cmd-text").textContent = COMMANDS[b.dataset.os];
+    document.getElementById("chat-cmd").textContent = CHAT[b.dataset.os];
   });
 });
 document.getElementById("copy").addEventListener("click", async e => {
@@ -386,59 +325,6 @@ document.getElementById("copy").addEventListener("click", async e => {
     setTimeout(() => { e.target.textContent = "Copier"; }, 1800);
   }catch(err){ e.target.textContent = "Ctrl+C"; }
 });
-
-// --- La constellation ----------------------------------------------------
-// Chaque point est une machine ; elles dérivent lentement et se relient
-// quand elles se rapprochent. C'est l'essaim, littéralement.
-(function sky(){
-  if(matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-  const canvas = document.getElementById("sky");
-  const ctx = canvas.getContext("2d");
-  let pts = [], w = 0, h = 0, raf = null;
-
-  function resize(){
-    const dpr = Math.min(devicePixelRatio || 1, 2);
-    w = canvas.offsetWidth; h = canvas.offsetHeight;
-    canvas.width = w * dpr; canvas.height = h * dpr;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const n = Math.min(48, Math.round(w * h / 26000));
-    pts = Array.from({length:n}, () => ({
-      x: Math.random() * w, y: Math.random() * h,
-      vx: (Math.random() - .5) * .13, vy: (Math.random() - .5) * .13,
-      r: Math.random() * 1.1 + .5,
-    }));
-  }
-  function frame(){
-    ctx.clearRect(0, 0, w, h);
-    for(const p of pts){
-      p.x += p.vx; p.y += p.vy;
-      if(p.x < 0 || p.x > w) p.vx *= -1;
-      if(p.y < 0 || p.y > h) p.vy *= -1;
-    }
-    for(let i = 0; i < pts.length; i++){
-      for(let j = i + 1; j < pts.length; j++){
-        const dx = pts[i].x - pts[j].x, dy = pts[i].y - pts[j].y;
-        const d2 = dx*dx + dy*dy;
-        if(d2 < 20000){
-          ctx.strokeStyle = "rgba(116,189,167," + (.16 * (1 - d2/20000)) + ")";
-          ctx.beginPath(); ctx.moveTo(pts[i].x, pts[i].y);
-          ctx.lineTo(pts[j].x, pts[j].y); ctx.stroke();
-        }
-      }
-    }
-    ctx.fillStyle = "rgba(140,205,185,.55)";
-    for(const p of pts){
-      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 6.284); ctx.fill();
-    }
-    raf = requestAnimationFrame(frame);
-  }
-  addEventListener("resize", resize);
-  document.addEventListener("visibilitychange", () => {
-    if(document.hidden){ cancelAnimationFrame(raf); raf = null; }
-    else if(!raf){ raf = requestAnimationFrame(frame); }
-  });
-  resize(); frame();
-})();
 </script>
 </body>
 </html>"""

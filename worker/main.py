@@ -31,6 +31,11 @@ def _parse_args() -> argparse.Namespace:
         action="store_true",
         help="diagnostiquer la machine et quitter, sans rien lancer",
     )
+    parser.add_argument(
+        "--chat",
+        action="store_true",
+        help="parler au modèle sur ta machine (gratuit, hors ligne)",
+    )
     return parser.parse_args()
 
 
@@ -123,6 +128,12 @@ def run() -> None:
                         datefmt="%H:%M:%S")
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
+    if args.chat:
+        # Rien à voir avec l'essaim : le modèle est déjà là, on s'en sert.
+        from worker.chat import run as chat_run
+        chat_run()
+        return
 
     if args.check:
         print(f"\nDiagnostic Lenyay — coordinateur {config.COORDINATOR_URL}\n")

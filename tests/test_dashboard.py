@@ -66,8 +66,11 @@ class TestLanding:
         assert response.status_code == 200
         html = response.text
         # Ce qu'un visiteur doit trouver : la promesse, la preuve, la commande.
-        for marker in ("Lenyay", "Rejoindre", "71,5", "71,0", "install.ps1",
-                       "install.sh", "/dashboard"):
+        # Le message doit porter sur le produit (une IA gratuite), pas sur la
+        # mécanique interne ; et l'état réel doit être affiché sans flou.
+        for marker in ("Lenyay", "IA gratuite", "datacenter", "Disponible",
+                       "En construction", "--chat", "install.ps1", "install.sh",
+                       "/dashboard"):
             assert marker in html, marker
         # La page ne doit appeler aucun service tiers.
         for tiers in ("googleapis", "gstatic", "cdn.", "googletagmanager"):
@@ -75,7 +78,7 @@ class TestLanding:
 
     def test_polices_servies_par_le_site(self, client_and_answers):
         client, _ = client_and_answers
-        for name in ("fraunces-latin.woff2", "plexmono-latin.woff2"):
+        for name in ("familjen-latin.woff2",):
             response = client.get(f"/static/fonts/{name}")
             assert response.status_code == 200
             assert response.content[:4] == b"wOF2"
