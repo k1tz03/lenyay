@@ -1,3 +1,7 @@
 # Les jeux de données figés sont hashés (sha256) : leurs octets doivent être
 # identiques sur toutes les plateformes — toujours LF, jamais de conversion CRLF.
 data/*.jsonl text eol=lf
+# Les .ps1 doivent rester en CRLF et ne jamais etre convertis
+install.ps1 text eol=crlf
+# Les scripts shell doivent rester en LF (un CR apres le shebang les casse)
+install.sh text eol=lf
