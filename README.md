@@ -8,6 +8,9 @@ Réseau de calcul coopératif : les machines des membres génèrent la nuit des
 coordinateur central **vérifie** les réponses, **crédite** les contributeurs et
 **archive** les traces correctes — le futur jeu de données de fine-tuning.
 
+**Tu veux juste contribuer ?** → [REJOINDRE.md](REJOINDRE.md) (une commande).
+La suite de ce document s'adresse à qui veut développer ou héberger Lenyay.
+
 Voir [ROADMAP.md](ROADMAP.md) pour la vision complète et les décisions actées.
 
 ## Architecture (phase 0 — tout tourne en local)
@@ -71,6 +74,12 @@ GGUF q4_k_m, ~1,1 Go, au premier lancement, puis résout les problèmes) :
 
 ```bash
 .venv/Scripts/python.exe -m worker.main
+```
+
+Diagnostic de la machine avant de lancer quoi que ce soit :
+
+```bash
+.venv/Scripts/python.exe -m worker.main --check
 ```
 
 Puis ouvre **http://127.0.0.1:8000/** : appareils vus, rollouts totaux, taux

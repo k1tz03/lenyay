@@ -19,11 +19,17 @@ log = logging.getLogger("lenyay.worker")
 
 
 def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Worker Lenyay")
+    parser = argparse.ArgumentParser(
+        description="Worker Lenyay — fais calculer ta machine pour l'essaim")
     parser.add_argument(
         "--mock",
         action="store_true",
-        help="équivalent de LENYAY_MOCK=1 (pratique sous PowerShell)",
+        help="traces simulées, sans modèle (développement local uniquement)",
+    )
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="diagnostiquer la machine et quitter, sans rien lancer",
     )
     return parser.parse_args()
 
@@ -109,11 +115,32 @@ def run() -> None:
     # Import après le réglage éventuel de LENYAY_MOCK par --mock.
     from common import config
     from common.schemas import ResultSubmission
+    from worker import preflight
     from worker.client import CoordinatorClient
     from worker.generation import make_generator
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s",
                         datefmt="%H:%M:%S")
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
+    if args.check:
+        print(f"\nDiagnostic Lenyay — coordinateur {config.COORDINATOR_URL}\n")
+        ok, report = preflight.run_all(config)
+        print(report)
+        print("\nTout est prêt." if ok else
+              "\nCorrige les points en ÉCHEC ci-dessus, puis relance.")
+        sys.exit(0 if ok else 1)
+
+    # Des traces simulées dans le corpus public le rendraient inutilisable
+    # pour l'entraînement : le mode mock reste cantonné au développement.
+    if config.MOCK_MODE and not preflight.is_local_coordinator(config.COORDINATOR_URL):
+        sys.exit(
+            f"Refus : le mode mock produit de fausses traces, il ne peut pas viser\n"
+            f"un coordinateur distant ({config.COORDINATOR_URL}).\n"
+            f"Retire --mock pour contribuer pour de vrai, ou lance ton propre\n"
+            f"coordinateur en local pour expérimenter."
+        )
 
     client = CoordinatorClient(config.COORDINATOR_URL)
     generator = make_generator()
@@ -125,6 +152,7 @@ def run() -> None:
     try:
         identity = _ensure_registered_with_retry(client, config.DEVICE_FILE)
         log.info("Worker prêt — mode %s, coordinateur %s", mode, config.COORDINATOR_URL)
+        log.info("Ta machine travaille pour l'essaim. Ctrl+C pour arrêter proprement.")
 
         # La boucle doit survivre à la nuit : toute erreur réseau ou HTTP se
         # solde par une pause puis un nouvel essai, jamais par un crash.
