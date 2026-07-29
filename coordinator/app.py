@@ -5,6 +5,7 @@ Lancement :  python -m coordinator.app
 soi-même --host/--port.)
 """
 
+import hmac
 import json
 import logging
 import threading
@@ -48,6 +49,7 @@ from common.schemas import (
 )
 from coordinator import auth, db, leases, limits, tasks
 from coordinator.about import ABOUT_HTML
+from coordinator.adminpage import ADMIN_HTML
 from coordinator.landing import LANDING_HTML
 from coordinator.verifier import verify
 
@@ -149,17 +151,29 @@ def require_account(request: Request,
                     x_account_key: str | None = Header(default=None, alias="X-Account-Key")):
     """Deux portes : la session (navigateur) ou la clé (machines et scripts).
     La clé n'est plus l'identité d'une personne — c'est un jeton d'API."""
+    account = None
     if x_account_key:
         account = db.account_for_key(x_account_key)
         if account is None:
             raise HTTPException(status_code=401, detail="Compte inconnu")
-        return account
-    token = request.cookies.get(_SESSION_COOKIE)
-    if token:
-        account = db.account_for_session(token)
-        if account is not None:
-            return account
-    raise HTTPException(status_code=401, detail="Connexion requise")
+    else:
+        token = request.cookies.get(_SESSION_COOKIE)
+        if token:
+            account = db.account_for_session(token)
+    if account is None:
+        raise HTTPException(status_code=401, detail="Connexion requise")
+    if "banned" in account.keys() and account["banned"]:
+        raise HTTPException(status_code=403, detail="Compte suspendu")
+    return account
+
+
+def require_admin(x_admin_token: str | None = Header(default=None, alias="X-Admin-Token")):
+    """L'administration n'existe que si un secret a été choisi (LENYAY_ADMIN_TOKEN)."""
+    if not config.ADMIN_TOKEN:
+        raise HTTPException(status_code=403, detail="Administration désactivée")
+    if not x_admin_token or not hmac.compare_digest(x_admin_token, config.ADMIN_TOKEN):
+        raise HTTPException(status_code=401, detail="Jeton d'administration invalide")
+    return True
 
 
 @app.post("/devices/register", response_model=RegisterResponse)
@@ -367,6 +381,47 @@ def auth_change_password(payload: PasswordChangeRequest, account=Depends(require
     return {"changed": True}
 
 
+# --- Administration ---------------------------------------------------------
+
+
+@app.get("/admin/members")
+def admin_members(_=Depends(require_admin)):
+    return {"members": db.admin_members()}
+
+
+@app.post("/admin/members/{account_id}/credits")
+def admin_adjust_credits(account_id: str, payload: dict, _=Depends(require_admin)):
+    amount = int(payload.get("amount", 0))
+    reason = str(payload.get("reason", "")).strip() or "Ajustement administrateur"
+    if amount == 0 or abs(amount) > 100_000:
+        raise HTTPException(status_code=422, detail="Montant invalide")
+    balance = db.move_account_credits(account_id, amount, kind="adjust",
+                                      label=f"Ajustement — {reason}")
+    logger.info("Admin : %+d crédits pour %s… (%s)", amount, account_id[:8], reason)
+    return {"credits": balance}
+
+
+@app.post("/admin/members/{account_id}/ban")
+def admin_ban(account_id: str, payload: dict, _=Depends(require_admin)):
+    banned = bool(payload.get("banned", True))
+    if not db.set_account_ban(account_id, banned):
+        raise HTTPException(status_code=404, detail="Membre inconnu")
+    logger.info("Admin : compte %s… %s", account_id[:8],
+                "suspendu" if banned else "rétabli")
+    return {"banned": banned}
+
+
+@app.get("/admin/overview")
+def admin_overview(_=Depends(require_admin)):
+    members = db.admin_members()
+    return {
+        "members": len(members),
+        "banned": sum(1 for m in members if m["banned"]),
+        "questions": db.questions_overview(),
+        "stats": {**db.stats(), "tasks_in_catalog": tasks.count()},
+    }
+
+
 # --- Comptes ---------------------------------------------------------------
 
 
@@ -392,6 +447,9 @@ def account_ledger(account=Depends(require_account)):
 
 @app.get("/accounts/me", response_model=AccountState)
 def account_state(account=Depends(require_account)):
+    # Le passage quotidien : si le solde est sous le plancher, il y remonte.
+    db.apply_daily_refill(account["account_id"], config.DAILY_FREE_CREDITS)
+    account = db.account_for_key(account["api_key"])
     keys = account.keys()
     return AccountState(
         handle=account["handle"],
@@ -456,6 +514,7 @@ def _charge_and_queue(account, prompt: str, tier_id: str,
     if not limits.device_limiter.allow(f"ask:{account_id}", config.RATE_LIMIT, 60.0):
         raise HTTPException(status_code=429, detail="Trop de questions à la suite")
     tier = config.TIERS.get(tier_id) or config.TIERS[config.DEFAULT_TIER]
+    db.apply_daily_refill(account_id, config.DAILY_FREE_CREDITS)
     if not db.spend_credits(account_id, tier["cost"],
                             label=f"Question — modèle {tier['label'].lower()}"):
         raise HTTPException(
@@ -742,6 +801,12 @@ def landing():
 def decouvrir():
     """Tout ce qui raconte Lenyay — le cycle jour/nuit, les crédits, l'état réel."""
     return ABOUT_HTML
+
+
+@app.get("/admin", response_class=HTMLResponse)
+def admin_console():
+    """La console : une coquille sans secret, le jeton reste chez l'admin."""
+    return ADMIN_HTML
 
 
 @app.get("/dashboard", response_class=HTMLResponse)

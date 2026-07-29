@@ -497,10 +497,12 @@ footer .right{margin-left:auto}
     </div>
 
     <div class="wall">
-      <p><b>Plus de crédits ?</b> Deux sorties : laisser ta machine contribuer — chaque
-        calcul vérifié te recrédite — ou, bientôt, un abonnement pour ceux qui préfèrent
-        payer plutôt que prêter. Il est en construction et nous ne le vendrons pas avant
-        qu'il existe.</p>
+      <p><b>Et si je ne contribue pas ?</b> Chaque jour, ton solde remonte à
+        5 crédits : de quoi poser quelques questions simples, gratuitement, pour
+        toujours. L'usage intensif — de longues sessions, du code — se gagne en
+        laissant ta machine contribuer, ou s'achètera avec un petit abonnement.
+        Comme il n'y a aucun datacenter à payer, il restera modeste — et il est
+        en construction : nous ne le vendrons pas avant qu'il existe.</p>
     </div>
   </div>
 </section>

@@ -112,6 +112,16 @@ CONTEXT_MESSAGES = int(_env("CONTEXT_MESSAGES", "8"))
 # Tentatives de connexion par IP et par quart d'heure.
 LOGIN_LIMIT = int(_env("LOGIN_LIMIT", "10"))
 
+# Jeton d'administration. Vide = administration désactivée : impossible de la
+# laisser ouverte par oubli, il faut choisir un secret pour l'activer.
+ADMIN_TOKEN = _env("ADMIN_TOKEN", "")
+
+# --- Économie ---------------------------------------------------------------
+# Le plancher quotidien : une fois par jour, un solde plus bas remonte à ce
+# niveau. Le curieux peut toujours poser quelques questions simples ; l'usage
+# intensif, lui, se gagne (en contribuant) ou s'achètera (abonnement).
+DAILY_FREE_CREDITS = int(_env("DAILY_FREE_CREDITS", "5"))
+
 # --- Comptes et questions --------------------------------------------------
 # Crédits offerts à l'ouverture d'un compte : de quoi essayer l'IA sans rien
 # donner d'abord — c'est la promesse « gratuite » tenue dès la première minute.

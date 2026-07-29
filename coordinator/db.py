@@ -169,6 +169,9 @@ def init_db() -> None:
         if "email" not in acc_columns:
             conn.execute("ALTER TABLE accounts ADD COLUMN email TEXT")
             conn.execute("ALTER TABLE accounts ADD COLUMN password_hash TEXT")
+        if "banned" not in acc_columns:
+            conn.execute("ALTER TABLE accounts ADD COLUMN banned INTEGER NOT NULL DEFAULT 0")
+            conn.execute("ALTER TABLE accounts ADD COLUMN last_refill TEXT")
         conn.execute(
             "CREATE UNIQUE INDEX IF NOT EXISTS idx_accounts_email"
             " ON accounts (email) WHERE email IS NOT NULL"
@@ -331,6 +334,69 @@ def account_for_session(token: str) -> sqlite3.Row | None:
 def delete_session(token: str) -> None:
     with _connect() as conn:
         conn.execute("DELETE FROM sessions WHERE token = ?", (token,))
+
+
+# --- Économie du quota ------------------------------------------------------
+
+
+def apply_daily_refill(account_id: str, floor: int) -> None:
+    """Une fois par jour, un solde sous le plancher y remonte.
+
+    C'est la moitié « accessible » du modèle économique : le curieux garde de
+    quoi essayer chaque jour, sans que l'usage intensif soit gratuit.
+    """
+    today = _now()[:10]
+    with _connect() as conn:
+        row = conn.execute(
+            "SELECT credits, last_refill, banned FROM accounts WHERE account_id = ?",
+            (account_id,)).fetchone()
+        if row is None or row["banned"]:
+            return
+        if row["credits"] >= floor or (row["last_refill"] or "")[:10] == today:
+            return
+        conn.execute(
+            "UPDATE accounts SET credits = ?, last_refill = ? WHERE account_id = ?",
+            (floor, today, account_id))
+        _write_ledger(conn, account_id, floor - row["credits"], "daily",
+                      "Recharge quotidienne", floor)
+
+
+# --- Administration ---------------------------------------------------------
+
+
+def admin_members() -> list[dict]:
+    """La vue complète : qui est là, ce qu'il a produit, ce qu'il a consommé."""
+    with _connect() as conn:
+        rows = conn.execute(
+            "SELECT a.account_id, a.handle, a.email, a.credits, a.banned, a.created_at,"
+            " COALESCE((SELECT SUM(amount) FROM ledger l"
+            "   WHERE l.account_id = a.account_id AND amount > 0), 0) AS earned,"
+            " COALESCE((SELECT -SUM(amount) FROM ledger l"
+            "   WHERE l.account_id = a.account_id AND amount < 0), 0) AS spent,"
+            " (SELECT COUNT(*) FROM devices d WHERE d.account_id = a.account_id) AS devices,"
+            " (SELECT COUNT(*) FROM questions q WHERE q.account_id = a.account_id) AS questions"
+            " FROM accounts a ORDER BY a.created_at DESC"
+        ).fetchall()
+    return [{**dict(r), "banned": bool(r["banned"])} for r in rows]
+
+
+def set_account_ban(account_id: str, banned: bool) -> bool:
+    with _connect() as conn:
+        cur = conn.execute("UPDATE accounts SET banned = ? WHERE account_id = ?",
+                           (1 if banned else 0, account_id))
+        if banned:
+            # Une suspension coupe aussi les navigateurs déjà connectés.
+            conn.execute("DELETE FROM sessions WHERE account_id = ?", (account_id,))
+        return cur.rowcount == 1
+
+
+def questions_overview() -> dict:
+    with _connect() as conn:
+        rows = conn.execute(
+            "SELECT status, COUNT(*) AS n FROM questions GROUP BY status").fetchall()
+    counts = {r["status"]: r["n"] for r in rows}
+    return {"pending": counts.get("pending", 0), "serving": counts.get("serving", 0),
+            "done": counts.get("done", 0)}
 
 
 def ledger_entries(account_id: str, limit: int = 100) -> list[dict]:

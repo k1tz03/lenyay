@@ -276,8 +276,9 @@ async function loadTiers(){
   const d = await (await fetch("/tiers")).json();
   tiers = d.tiers; tier = d.default;
   $("picker").innerHTML = tiers.map(t =>
-    `<button data-t="${t.id}" aria-pressed="${t.id === tier}" title="${esc(t.about)}">
-       ${esc(t.label)} <span class="price">${t.cost} cr.</span></button>`).join("");
+    `<button data-t="${t.id}" aria-pressed="${t.id === tier}"
+       title="${esc(t.model)} — ${esc(t.about)}">
+       ${esc(t.label)} <span class="price">${esc(t.model)} · ${t.cost} cr.</span></button>`).join("");
   $("picker").querySelectorAll("button").forEach(b => b.onclick = () => {
     tier = b.dataset.t;
     $("picker").querySelectorAll("button").forEach(o =>
@@ -357,6 +358,7 @@ async function logout(){
 $("signin").onclick = () => { authForm("login"); $("dlg").showModal(); };
 /* ---------- Le compte : solde, gains, dépenses, machines ---------- */
 const KINDS = {
+  daily:    ["🌱", "Recharge quotidienne"],
   welcome:  ["🎁", "Bienvenue"],
   solved:   ["🧮", "Calculs"],
   served:   ["💬", "Réponse servie"],
@@ -559,11 +561,15 @@ async function send(text){
   }, 2000);
 }
 function outOfCredits(detail){
-  $("dlg-body").innerHTML = `<h3>Plus de crédits</h3>
+  $("dlg-body").innerHTML = `<h3>Plus de crédits pour aujourd'hui</h3>
     <p>${esc(detail)}</p>
     <ul>
-      <li><b>Contribuer</b> — laisse Lenyay tourner : chaque calcul vérifié te recrédite.</li>
-      <li><b>S'abonner</b> — bientôt, pour utiliser sans contribuer.</li>
+      <li><b>Demain</b> — ton solde remonte automatiquement : de quoi quelques
+        questions simples chaque jour.</li>
+      <li><b>Contribuer</b> — laisse Lenyay tourner : chaque calcul vérifié te
+        recrédite, sans limite.</li>
+      <li><b>S'abonner</b> — bientôt, un petit abonnement pour utiliser sans
+        contribuer.</li>
     </ul>
     <button class="go" onclick="document.getElementById('dlg').close();location.href='/decouvrir#participer'">
       Voir comment contribuer</button>`;
