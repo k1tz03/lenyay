@@ -47,7 +47,7 @@ from common.schemas import (
     Verdict,
     WorkBatch,
 )
-from coordinator import auth, db, leases, limits, tasks
+from coordinator import auth, codeverify, db, leases, limits, tasks
 from coordinator.about import ABOUT_HTML
 from coordinator.adminpage import ADMIN_HTML
 from coordinator.landing import LANDING_HTML
@@ -212,6 +212,7 @@ def get_work(
         Task(
             task_id=t.task_id,
             prompt=t.prompt,
+            kind=t.kind,
             lease=leases.issue(secret, device_id, t.task_id, config.LEASE_TTL),
         )
         for t in batch
@@ -285,7 +286,12 @@ def _submit_locked(payload: ResultsPayload, device, device_id: str) -> SubmitRes
                         extracted_answer=None, attempt=attempt - 1)
             )
             continue
-        accepted, extracted = verify(result.trace, task.expected_answer)
+        if task.kind == "code":
+            # Le juge est un jeu de tests, pas un nombre — même principe :
+            # vérifiable, binaire, et le secret (les tests) reste au serveur.
+            accepted, extracted = codeverify.verify_code(result.trace, task.tests)
+        else:
+            accepted, extracted = verify(result.trace, task.expected_answer)
         if accepted and len(result.trace.strip()) < config.MIN_TRACE_CHARS:
             # Bonne réponse sans raisonnement : aucune valeur pour le dataset,
             # et signature classique d'une réponse copiée. Pas de crédit.
@@ -466,8 +472,14 @@ def account_state(account=Depends(require_account)):
 
 @app.get("/tiers")
 def tiers():
-    """Les modèles proposés, leur prix et ce qu'ils rapportent à qui les sert."""
-    return {"tiers": list(config.TIERS.values()), "default": config.DEFAULT_TIER}
+    """Les modèles proposés, leur prix, et combien de machines peuvent les
+    servir en ce moment — le chat n'affiche pas de promesse sans machine."""
+    online = db.online_devices_by_tier(config.TIER_ONLINE_WINDOW)
+    return {
+        "tiers": [{**t, "online": online.get(t["id"], 0)}
+                  for t in config.TIERS.values()],
+        "default": config.DEFAULT_TIER,
+    }
 
 
 # --- Conversations ----------------------------------------------------------

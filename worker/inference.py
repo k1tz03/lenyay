@@ -23,11 +23,27 @@ SYSTEM_PROMPT = (
     "in the exact format: #### <number>"
 )
 
+# Pour les tâches de code du catalogue : la solution doit tenir dans un bloc
+# ```python, c'est lui que le serveur extrait et soumet aux tests.
+CODE_TASK_PROMPT = (
+    "You are a careful Python programmer. Write the requested function. "
+    "Reply with a single ```python code block containing the complete "
+    "solution, then one short sentence of explanation."
+)
+
 # Quand la machine répond à un membre du réseau plutôt qu'à un exercice.
 ASSISTANT_PROMPT = (
     "Tu es l'assistant de Lenyay, servi par l'ordinateur d'un membre du réseau. "
     "Tu réponds en français, clairement et utilement, sans bavardage. "
     "Si tu ne sais pas, tu le dis simplement."
+)
+
+# Le module Code : réponses orientées code, dans des blocs ```.
+CODE_ASSISTANT_PROMPT = (
+    "Tu es l'assistant de programmation de Lenyay, servi par l'ordinateur d'un "
+    "membre du réseau. Réponds avec du code dans des blocs ``` (précise le "
+    "langage), accompagné d'explications brèves en français. Code correct et "
+    "lisible d'abord, élégance ensuite."
 )
 
 
@@ -109,9 +125,10 @@ class LlamaGenerator:
         log.info("Modèle chargé.")
 
     def generate(self, task: Task) -> str:
+        system = CODE_TASK_PROMPT if task.kind == "code" else SYSTEM_PROMPT
         output = self._llm.create_chat_completion(
             messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "system", "content": system},
                 {"role": "user", "content": task.prompt},
             ],
             temperature=config.TEMPERATURE,
@@ -123,7 +140,9 @@ class LlamaGenerator:
         """Répondre à un membre du réseau — pas un calcul vérifié, une vraie
         conversation. Le contexte est la mémoire du fil : sans lui, l'assistant
         oublierait ce qui vient d'être dit."""
-        messages = [{"role": "system", "content": ASSISTANT_PROMPT}]
+        system = (CODE_ASSISTANT_PROMPT if config.WORKER_TIER == "code"
+                  else ASSISTANT_PROMPT)
+        messages = [{"role": "system", "content": system}]
         for entry in (context or []):
             if entry.get("role") in {"user", "assistant"} and entry.get("content"):
                 messages.append({"role": entry["role"], "content": entry["content"]})

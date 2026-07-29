@@ -28,20 +28,26 @@ def load_tasks() -> int:
             "scripts/seed_tasks.py (voir README)."
         )
     skipped = 0
-    with config.TASKS_FILE.open(encoding="utf-8") as f:
-        for lineno, line in enumerate(f, start=1):
-            if not line.strip():
-                continue
-            try:
-                task = TaskWithAnswer(**json.loads(line))
-            except (json.JSONDecodeError, ValidationError) as exc:
-                logger.warning(
-                    "%s ligne %d ignorée (%s)",
-                    config.TASKS_FILE.name, lineno, type(exc).__name__,
-                )
-                skipped += 1
-                continue
-            _tasks[task.task_id] = task
+    catalogs = [config.TASKS_FILE]
+    # Le code est le deuxième terrain vérifiable : son catalogue, s'il existe,
+    # rejoint la même rotation que les maths.
+    if config.CODE_TASKS_FILE.exists():
+        catalogs.append(config.CODE_TASKS_FILE)
+    for path in catalogs:
+        with path.open(encoding="utf-8") as f:
+            for lineno, line in enumerate(f, start=1):
+                if not line.strip():
+                    continue
+                try:
+                    task = TaskWithAnswer(**json.loads(line))
+                except (json.JSONDecodeError, ValidationError) as exc:
+                    logger.warning(
+                        "%s ligne %d ignorée (%s)", path.name, lineno,
+                        type(exc).__name__,
+                    )
+                    skipped += 1
+                    continue
+                _tasks[task.task_id] = task
     if skipped:
         logger.warning("%d ligne(s) corrompue(s) ignorée(s) dans le catalogue", skipped)
     return len(_tasks)

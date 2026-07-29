@@ -83,7 +83,9 @@ button{font:inherit}
   padding:.35rem .85rem; font-size:.86rem; color:var(--soft); display:flex; gap:.4rem;
   align-items:center}
 .picker button[aria-pressed="true"]{background:var(--verd-deep); color:#fff; font-weight:600}
+.picker button:disabled{opacity:.4; cursor:not-allowed}
 .picker .price{font-size:.74rem; opacity:.75}
+@media (max-width:1080px){ .picker .price{display:none} }
 .netstate{margin-left:auto; font-size:.83rem; color:var(--soft); display:flex;
   align-items:center; gap:.4rem}
 .netstate i{width:.45rem; height:.45rem; border-radius:50%; background:var(--verd);
@@ -113,6 +115,17 @@ button{font:inherit}
 .turn .body .txt{white-space:pre-wrap; word-wrap:break-word}
 .turn.ai .body .txt{background:var(--panel); border:1px solid var(--line); border-radius:12px;
   padding:.85rem 1rem; box-shadow:var(--lift)}
+.txt .prose{white-space:pre-wrap}
+.txt .prose + .codebox, .txt .codebox + .prose{margin-top:.7rem}
+.codebox{border:1px solid var(--line); border-radius:10px; overflow:hidden;
+  background:#1C2B26}
+.codehead{display:flex; align-items:center; justify-content:space-between;
+  padding:.35rem .7rem; background:#243530; color:#9DB4AB; font-size:.76rem}
+.codehead button{border:none; background:none; color:#9DB4AB; cursor:pointer;
+  font-size:.76rem; padding:.1rem .4rem}
+.codehead button:hover{color:#fff}
+.codebox pre{margin:0; padding:.8rem .9rem; overflow-x:auto; font-family:var(--mono);
+  font-size:.84rem; line-height:1.55; color:#DCEBE5; white-space:pre}
 .meta{font-size:.78rem; color:var(--soft); margin-top:.4rem; display:flex; gap:.5rem;
   align-items:center; flex-wrap:wrap}
 .meta b{color:var(--verd-deep)}
@@ -274,12 +287,17 @@ const api = (url, opt = {}) => fetch(url, {...opt, headers: {
 /* ---------- Paliers ---------- */
 async function loadTiers(){
   const d = await (await fetch("/tiers")).json();
-  tiers = d.tiers; tier = d.default;
-  $("picker").innerHTML = tiers.map(t =>
-    `<button data-t="${t.id}" aria-pressed="${t.id === tier}"
-       title="${esc(t.model)} — ${esc(t.about)}">
-       ${esc(t.label)} <span class="price">${esc(t.model)} · ${t.cost} cr.</span></button>`).join("");
-  $("picker").querySelectorAll("button").forEach(b => b.onclick = () => {
+  tiers = d.tiers;
+  // On ne propose jamais un modèle qu'aucune machine ne peut servir.
+  const first = tiers.find(t => t.online > 0);
+  tier = (tiers.find(t => t.id === d.default && t.online > 0) || first || {id:d.default}).id;
+  $("picker").innerHTML = tiers.map(t => {
+    const off = t.online === 0;
+    return `<button data-t="${t.id}" aria-pressed="${t.id === tier}" ${off ? "disabled" : ""}
+       title="${esc(t.model)} — ${off ? "aucune machine en ligne pour ce modèle" : esc(t.about)}">
+       ${esc(t.label)} <span class="price">${esc(t.model)} · ${t.cost} cr.</span></button>`;
+  }).join("");
+  $("picker").querySelectorAll("button:not([disabled])").forEach(b => b.onclick = () => {
     tier = b.dataset.t;
     $("picker").querySelectorAll("button").forEach(o =>
       o.setAttribute("aria-pressed", o.dataset.t === tier));
@@ -493,12 +511,42 @@ async function openThread(id){
     m.role === "assistant" ? m : null));
   loadThreads(); scroll();
 }
+/* Les réponses code arrivent en blocs ``` : on les rend dans des <pre>
+   copiables. Tout passe par textContent — jamais d'HTML venu du modèle. */
+function renderRich(container, text){
+  const parts = String(text).split(/```([a-zA-Z]*)\n?/);
+  // découpage : [texte, langue, code, texte, langue, code, ...]
+  for(let i = 0; i < parts.length; i++){
+    if(i % 3 === 0){
+      if(parts[i].trim()){
+        const p = document.createElement("div");
+        p.className = "prose"; p.textContent = parts[i].trim();
+        container.append(p);
+      }
+    } else if(i % 3 === 1){
+      const lang = parts[i], code = parts[i + 1] ?? ""; i++;
+      const box = document.createElement("div"); box.className = "codebox";
+      const head = document.createElement("div"); head.className = "codehead";
+      const lab = document.createElement("span"); lab.textContent = lang || "code";
+      const cp = document.createElement("button"); cp.type = "button"; cp.textContent = "Copier";
+      cp.onclick = async () => {
+        try{ await navigator.clipboard.writeText(code); cp.textContent = "Copié";
+          setTimeout(() => cp.textContent = "Copier", 1500); }catch(e){}
+      };
+      head.append(lab, cp);
+      const pre = document.createElement("pre"); pre.textContent = code.replace(/\n$/, "");
+      box.append(head, pre); container.append(box);
+    }
+  }
+}
 function addTurn(kind, text, meta){
   const el = document.createElement("div");
   el.className = "turn " + kind;
   el.innerHTML = `<div class="who">${kind === "me" ? "toi" : "IA"}</div>
     <div class="body"><div class="txt"></div></div>`;
-  el.querySelector(".txt").textContent = text;
+  const txt = el.querySelector(".txt");
+  if(kind === "ai" && String(text).includes("```")){ renderRich(txt, text); }
+  else { txt.textContent = text; }
   if(meta){
     const m = document.createElement("p");
     m.className = "meta";

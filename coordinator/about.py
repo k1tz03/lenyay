@@ -148,6 +148,8 @@ h2{font-size:clamp(1.7rem,3.8vw,2.5rem); line-height:1.12; letter-spacing:-.028e
 .offer::after{content:""; position:absolute; inset:auto 0 0 0; height:4px}
 .offer.rapide::after{background:var(--verd)}
 .offer.costaud::after{background:var(--amber)}
+.offer.code::after{background:var(--night)}
+.offer.geant::after{background:linear-gradient(90deg,var(--verd),var(--amber))}
 .offer h3{margin:0; font-size:1.25rem; letter-spacing:-.015em}
 .offer .model{font-size:.83rem; color:var(--soft); margin:.15rem 0 1rem}
 .offer .flows{display:grid; gap:.55rem; margin:0 0 1rem}
@@ -491,8 +493,28 @@ footer .right{margin-left:auto}
           <div class="cost"><span>Poser une question</span><b>−5 crédits</b></div>
           <div class="earn"><span>La servir avec ta machine</span><b>+12 crédits</b></div>
         </div>
-        <p class="about">Raisonnements longs, rédaction, code. Demande ~8 Go de mémoire
+        <p class="about">Raisonnements longs, rédaction. Demande ~8 Go de mémoire
           libre — et rapporte quatre fois plus à qui le sert.</p>
+      </div>
+      <div class="offer code">
+        <h3>Code</h3>
+        <p class="model">Qwen2.5-Coder — spécialisé programmation</p>
+        <div class="flows">
+          <div class="cost"><span>Poser une question</span><b>−12 crédits</b></div>
+          <div class="earn"><span>La servir avec ta machine</span><b>+25 crédits</b></div>
+        </div>
+        <p class="about">Écrire, corriger, expliquer du code. Le palier le plus cher —
+          c'est le vrai poste de calcul, et le plus rentable à servir.</p>
+      </div>
+      <div class="offer geant">
+        <h3>Géant</h3>
+        <p class="model">Qwen2.5 — 14 milliards de paramètres</p>
+        <div class="flows">
+          <div class="cost"><span>Poser une question</span><b>−20 crédits</b></div>
+          <div class="earn"><span>La servir avec ta machine</span><b>+45 crédits</b></div>
+        </div>
+        <p class="about">Le plus grand modèle du réseau (~12 Go de mémoire libre).
+          N'apparaît dans le chat que si une machine peut le servir.</p>
       </div>
     </div>
 

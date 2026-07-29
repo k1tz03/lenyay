@@ -20,13 +20,22 @@ comme disponible ce qui ne l'est pas.
 
 ## En chantier — calendrier honnête
 
-| Chantier | Effort réel | Faisable avant le 7/8 ? |
+| Chantier | Effort réel | État |
 |---|---|---|
+| **Module Lenyay Code** (chat) | — | ✅ **livré** — palier Code (Qwen2.5-Coder, 12 crédits, +25) |
+| **Entraîner par le code** | — | ✅ **livré (v0)** — 24 tâches vérifiées par tests unitaires en sandbox |
+| **Choix du modèle dans le chat** | — | ✅ livré — sélecteur (les modèles sans machine en ligne sont grisés) |
+| **Grand modèle : palier Géant 14B** | — | ✅ livré — attend ses premières machines (voir GRAND-MODELE.md) |
+| **Grand modèle réparti sur N foyers** | plusieurs mois (R&D) | ❌ recherche — chemin par étapes dans GRAND-MODELE.md |
 | **Abonnement payant** | 1–2 sem. + société + Stripe + CGV | ❌ décision juridique, pas du code |
-| **Choix du modèle dans le chat** | — | ✅ **déjà là** (sélecteur Rapide/Costaud) |
-| **Très grand modèle réparti sur N machines** | plusieurs mois (R&D) | ❌ problème de recherche |
-| **Application Android** | 3–6 semaines | ❌ hors fenêtre |
-| **Entraîner sur autre chose que les maths** | 2–4 semaines | ⚠️ partiellement |
+| **Application Android** | 3–6 semaines | ❌ hors fenêtre du 7/8 |
+
+**Sandbox code — condition d'exploitation** : le vérificateur exécute le code
+soumis en sous-processus isolé (`python -I`, délai strict, filtrage statique,
+limites mémoire/CPU sur Linux). C'est suffisant pour la fenêtre de lancement,
+mais le VPS devra ajouter une isolation système (conteneur ou utilisateur
+dédié sans droits) avant d'augmenter le volume de tâches code — c'est noté
+comme pré-requis de déploiement.
 
 ### Abonnement — ce qui manque n'est pas technique
 

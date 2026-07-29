@@ -92,9 +92,30 @@ TIERS = {
         "id": "costaud",
         "label": "Costaud",
         "model": "Qwen2.5 7B",
-        "about": "Raisonnements longs, rédaction, code. Plus lent, plus cher.",
+        "about": "Raisonnements longs, rédaction. Plus lent, plus cher.",
         "cost": 5,
         "reward": 12,
+    },
+    # Le module Code : un modèle spécialisé, et le poste de calcul le plus
+    # lourd — donc le palier le plus cher, côté crédits comme, demain, côté
+    # abonnement. C'est lui que financent « les personnes qui font du code ».
+    "code": {
+        "id": "code",
+        "label": "Code",
+        "model": "Qwen2.5-Coder 7B",
+        "about": "Écrire, corriger et expliquer du code. Le palier le plus cher.",
+        "cost": 12,
+        "reward": 25,
+    },
+    # Le pas suivant vers le « très grand modèle » : servi en entier par une
+    # machine qui en est capable (~12 Go de mémoire libre).
+    "geant": {
+        "id": "geant",
+        "label": "Géant",
+        "model": "Qwen2.5 14B",
+        "about": "Le plus grand modèle du réseau. Réservé aux machines solides.",
+        "cost": 20,
+        "reward": 45,
     },
 }
 # Le modèle GGUF associé à chaque palier : une machine « costaud » télécharge
@@ -102,7 +123,12 @@ TIERS = {
 TIER_MODELS = {
     "rapide": ("Qwen/Qwen2.5-1.5B-Instruct-GGUF", "q4_k_m"),
     "costaud": ("Qwen/Qwen2.5-7B-Instruct-GGUF", "q4_k_m"),
+    "code": ("Qwen/Qwen2.5-Coder-7B-Instruct-GGUF", "q4_k_m"),
+    "geant": ("Qwen/Qwen2.5-14B-Instruct-GGUF", "q4_k_m"),
 }
+# Une machine est « en ligne » pour un palier si elle a donné signe de vie
+# dans cette fenêtre (minutes) — sert à n'afficher que les modèles servables.
+TIER_ONLINE_WINDOW = int(_env("TIER_ONLINE_WINDOW", "10"))
 DEFAULT_TIER = _env("DEFAULT_TIER", "rapide")
 # Le palier que cette machine sait servir (côté worker).
 WORKER_TIER = _env("TIER", "rapide")
@@ -137,6 +163,14 @@ QUESTION_MAX_CHARS = int(_env("QUESTION_MAX_CHARS", "2000"))
 SERVE_MIN_ACCEPTED = int(_env("SERVE_MIN_ACCEPTED", "20"))
 # Au-delà, une question décrochée mais sans réponse retourne à la file.
 SERVE_TIMEOUT = int(_env("SERVE_TIMEOUT", "180"))
+
+# --- Tâches de code ---------------------------------------------------------
+# Catalogue des tâches vérifiées par tests unitaires (absent = maths seules).
+CODE_TASKS_FILE = Path(_env("CODE_TASKS", str(REPO_ROOT / "data" / "code_tasks.jsonl")))
+# Délai d'exécution d'une solution, en secondes.
+CODE_TIMEOUT = int(_env("CODE_TIMEOUT", "10"))
+# Taille maximale du code extrait.
+CODE_MAX_CHARS = int(_env("CODE_MAX_CHARS", "20000"))
 
 # --- Inférence -------------------------------------------------------------
 TEMPERATURE = float(_env("TEMPERATURE", "0.8"))

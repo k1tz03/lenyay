@@ -20,12 +20,19 @@ class Task(BaseModel):
     task_id: str
     prompt: str
     lease: str = ""
+    # "math" (réponse exacte) ou "code" (tests unitaires au vert).
+    kind: str = "math"
 
 
 class TaskWithAnswer(Task):
-    """Version coordinateur uniquement — ne sort jamais de l'API."""
+    """Version coordinateur uniquement — ne sort jamais de l'API.
 
-    expected_answer: str
+    La réponse attendue (maths) et les tests (code) sont les deux formes du
+    même secret : ce qui permet de vérifier sans faire confiance.
+    """
+
+    expected_answer: str = ""
+    tests: str = ""
 
 
 class WorkBatch(BaseModel):

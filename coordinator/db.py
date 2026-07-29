@@ -390,6 +390,19 @@ def set_account_ban(account_id: str, banned: bool) -> bool:
         return cur.rowcount == 1
 
 
+def online_devices_by_tier(window_minutes: int) -> dict[str, int]:
+    """Machines vues récemment, par palier — ce qui est réellement servable."""
+    cutoff = (datetime.now(timezone.utc)
+              - timedelta(minutes=window_minutes)).isoformat()
+    with _connect() as conn:
+        rows = conn.execute(
+            "SELECT COALESCE(tier, 'rapide') AS tier, COUNT(*) AS n FROM devices"
+            " WHERE last_seen >= ? GROUP BY COALESCE(tier, 'rapide')",
+            (cutoff,),
+        ).fetchall()
+    return {r["tier"]: r["n"] for r in rows}
+
+
 def questions_overview() -> dict:
     with _connect() as conn:
         rows = conn.execute(
