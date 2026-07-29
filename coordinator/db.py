@@ -30,6 +30,19 @@ CREATE TABLE IF NOT EXISTS accounts (
     created_at TEXT NOT NULL
 );
 
+-- Le registre : tout mouvement de crédits y laisse une trace justifiable.
+CREATE TABLE IF NOT EXISTS ledger (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    account_id    TEXT NOT NULL,
+    amount        INTEGER NOT NULL,
+    kind          TEXT NOT NULL,
+    label         TEXT NOT NULL,
+    device_name   TEXT,
+    balance_after INTEGER NOT NULL,
+    created_at    TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_ledger_account ON ledger (account_id, id);
+
 -- Un fil de conversation, avec sa mémoire.
 CREATE TABLE IF NOT EXISTS conversations (
     id         TEXT PRIMARY KEY,
@@ -221,6 +234,15 @@ def register_device(device_name: str, account_id: str | None = None,
 # --- Comptes ---------------------------------------------------------------
 
 
+def _write_ledger(conn, account_id: str, amount: int, kind: str, label: str,
+                  balance_after: int, device_name: str | None = None) -> None:
+    conn.execute(
+        "INSERT INTO ledger (account_id, amount, kind, label, device_name,"
+        " balance_after, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (account_id, amount, kind, label, device_name, balance_after, _now()),
+    )
+
+
 def create_account(handle: str, welcome_credits: int) -> tuple[str, str]:
     """Un compte, une clé. Pas de mot de passe : la clé EST le compte, et on
     offre de quoi essayer l'IA tout de suite."""
@@ -232,7 +254,31 @@ def create_account(handle: str, welcome_credits: int) -> tuple[str, str]:
             " VALUES (?, ?, ?, ?, ?)",
             (account_id, handle, api_key, welcome_credits, _now()),
         )
+        _write_ledger(conn, account_id, welcome_credits, "welcome",
+                      "Crédits de bienvenue", welcome_credits)
     return account_id, api_key
+
+
+def ledger_entries(account_id: str, limit: int = 100) -> list[dict]:
+    with _connect() as conn:
+        rows = conn.execute(
+            "SELECT amount, kind, label, device_name, balance_after, created_at"
+            " FROM ledger WHERE account_id = ? ORDER BY id DESC LIMIT ?",
+            (account_id, limit),
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def ledger_summary(account_id: str) -> dict:
+    with _connect() as conn:
+        row = conn.execute(
+            "SELECT COALESCE(SUM(CASE WHEN amount > 0 THEN amount END), 0) AS earned,"
+            " COALESCE(-SUM(CASE WHEN amount < 0 THEN amount END), 0) AS spent"
+            " FROM ledger WHERE account_id = ?",
+            (account_id,),
+        ).fetchone()
+    return {"earned": row["earned"], "spent": row["spent"],
+            "balance": row["earned"] - row["spent"]}
 
 
 def account_for_key(api_key: str) -> sqlite3.Row | None:
@@ -252,7 +298,9 @@ def account_devices(account_id: str) -> list[dict]:
     return [dict(r) for r in rows]
 
 
-def move_account_credits(account_id: str, amount: int) -> int:
+def move_account_credits(account_id: str, amount: int, kind: str = "adjust",
+                         label: str = "Ajustement",
+                         device_name: str | None = None) -> int:
     """Ajoute (ou retire, si négatif) des crédits ; renvoie le nouveau solde."""
     with _connect() as conn:
         conn.execute(
@@ -261,17 +309,25 @@ def move_account_credits(account_id: str, amount: int) -> int:
         )
         row = conn.execute(
             "SELECT credits FROM accounts WHERE account_id = ?", (account_id,)).fetchone()
-    return row["credits"] if row else 0
+        balance = row["credits"] if row else 0
+        _write_ledger(conn, account_id, amount, kind, label, balance, device_name)
+    return balance
 
 
-def spend_credits(account_id: str, amount: int) -> bool:
-    """Débit atomique : refuse si le solde est insuffisant."""
+def spend_credits(account_id: str, amount: int, label: str = "Dépense",
+                  kind: str = "question") -> bool:
+    """Débit atomique : refuse si le solde est insuffisant, et laisse une trace."""
     with _connect() as conn:
         cur = conn.execute(
             "UPDATE accounts SET credits = credits - ? WHERE account_id = ? AND credits >= ?",
             (amount, account_id, amount),
         )
-        return cur.rowcount == 1
+        if cur.rowcount != 1:
+            return False
+        row = conn.execute(
+            "SELECT credits FROM accounts WHERE account_id = ?", (account_id,)).fetchone()
+        _write_ledger(conn, account_id, -amount, kind, label, row["credits"])
+        return True
 
 
 def device_for_key(api_key: str) -> sqlite3.Row | None:
@@ -302,9 +358,11 @@ def record_rollout(
         )
 
 
-def add_credits(device_id: str, amount: int) -> int:
+def add_credits(device_id: str, amount: int, kind: str = "solved",
+                label: str = "Calculs vérifiés") -> int:
     """Ajoute des crédits à l'appareil ET au compte qui le porte, s'il y en a un.
-    L'appareil garde son compteur (le classement), le compte tient la bourse."""
+    L'appareil garde son compteur (le classement), le compte tient la bourse —
+    et le registre garde la trace de qui a produit quoi."""
     with _connect() as conn:
         conn.execute(
             "UPDATE credits SET credits = credits + ? WHERE device_id = ?",
@@ -314,13 +372,18 @@ def add_credits(device_id: str, amount: int) -> int:
             "SELECT credits FROM credits WHERE device_id = ?", (device_id,)
         ).fetchone()
         owner = conn.execute(
-            "SELECT account_id FROM devices WHERE device_id = ?", (device_id,)
+            "SELECT account_id, device_name FROM devices WHERE device_id = ?", (device_id,)
         ).fetchone()
         if amount and owner and owner["account_id"]:
             conn.execute(
                 "UPDATE accounts SET credits = credits + ? WHERE account_id = ?",
                 (amount, owner["account_id"]),
             )
+            balance = conn.execute(
+                "SELECT credits FROM accounts WHERE account_id = ?",
+                (owner["account_id"],)).fetchone()["credits"]
+            _write_ledger(conn, owner["account_id"], amount, kind, label,
+                          balance, owner["device_name"])
     return row["credits"] if row else 0
 
 

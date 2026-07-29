@@ -7,6 +7,7 @@ licence Apache-2.0).
 """
 
 import logging
+import os
 from pathlib import Path
 
 from common import config
@@ -30,6 +31,18 @@ ASSISTANT_PROMPT = (
 )
 
 
+def _tier_model() -> tuple[str, str]:
+    """Le modèle correspondant au palier servi par cette machine.
+
+    LENYAY_MODEL_REPO reste prioritaire : on peut toujours imposer un modèle
+    précis, quel que soit le palier déclaré.
+    """
+    if "LENYAY_MODEL_REPO" in os.environ or "ESSAIM_MODEL_REPO" in os.environ:
+        return config.MODEL_REPO, config.MODEL_FILE_PATTERN
+    return config.TIER_MODELS.get(
+        config.WORKER_TIER, (config.MODEL_REPO, config.MODEL_FILE_PATTERN))
+
+
 def _ensure_model() -> Path:
     """Renvoie le chemin du GGUF local, en le téléchargeant si nécessaire.
 
@@ -37,37 +50,51 @@ def _ensure_model() -> Path:
     de quantisation — plus robuste que de coder un nom de fichier en dur.
     """
     config.MODELS_DIR.mkdir(parents=True, exist_ok=True)
-    pattern = config.MODEL_FILE_PATTERN.lower()
+    repo, pattern = _tier_model()
+    pattern = pattern.lower()
+    # La famille du modèle fait partie de la reconnaissance : sans elle, une
+    # machine « costaud » réutiliserait le 1.5B déjà présent sur le disque.
+    family = repo.split("/")[-1].lower().replace("-gguf", "")
 
-    existing = [p for p in config.MODELS_DIR.glob("*.gguf") if pattern in p.name.lower()]
+    existing = sorted(p for p in config.MODELS_DIR.glob("*.gguf")
+                      if pattern in p.name.lower() and family in p.name.lower())
     if existing:
-        return existing[0]
+        # Modèle découpé : il faut toutes les parties avant de s'en servir.
+        head = existing[0]
+        if "-of-" in head.name.lower():
+            expected = int(head.name.lower().split("-of-")[1].split(".")[0])
+            if len(existing) < expected:
+                log.info("Modèle incomplet (%d/%d parties) — reprise du téléchargement",
+                         len(existing), expected)
+            else:
+                return head
+        else:
+            return head
 
     from huggingface_hub import hf_hub_download, list_repo_files
 
-    files = list_repo_files(config.MODEL_REPO)
+    files = list_repo_files(repo)
     candidates = sorted(
         f for f in files if f.lower().endswith(".gguf") and pattern in f.lower()
     )
-    # Les gros modèles sont parfois découpés en "...-00001-of-00002.gguf" ;
-    # on préfère un fichier entier.
-    whole = [f for f in candidates if "-of-" not in f.lower()]
-    if whole:
-        candidates = whole
     if not candidates:
-        raise RuntimeError(
-            f"Aucun GGUF contenant '{pattern}' dans {config.MODEL_REPO}"
-        )
+        raise RuntimeError(f"Aucun GGUF contenant '{pattern}' dans {repo}")
 
-    filename = candidates[0]
-    log.info(
-        "Téléchargement du modèle %s depuis %s (premier lancement uniquement)...",
-        filename, config.MODEL_REPO,
-    )
-    path = hf_hub_download(
-        repo_id=config.MODEL_REPO, filename=filename, local_dir=config.MODELS_DIR
-    )
-    return Path(path)
+    # Les gros modèles sont découpés en "...-00001-of-00002.gguf". Un fichier
+    # entier suffit ; sinon il faut TOUTES les parties, llama.cpp les recolle
+    # à partir de la première.
+    whole = [f for f in candidates if "-of-" not in f.lower()]
+    wanted = [whole[0]] if whole else sorted(f for f in candidates if "-of-" in f.lower())
+
+    log.info("Téléchargement du modèle depuis %s — %d fichier(s), premier lancement "
+             "uniquement...", repo, len(wanted))
+    first = None
+    for name in wanted:
+        path = Path(hf_hub_download(repo_id=repo, filename=name,
+                                    local_dir=config.MODELS_DIR))
+        first = first or path
+        log.info("  %s (%.1f Go)", path.name, path.stat().st_size / 1024**3)
+    return first
 
 
 class LlamaGenerator:

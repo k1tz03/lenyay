@@ -303,6 +303,14 @@ def create_account(payload: AccountRequest, request: Request):
                            handle=handle, credits=config.WELCOME_CREDITS)
 
 
+@app.get("/accounts/ledger")
+def account_ledger(account=Depends(require_account)):
+    """Le relevé du compte : d'où viennent les crédits, où ils sont partis."""
+    account_id = account["account_id"]
+    return {"entries": db.ledger_entries(account_id),
+            "summary": db.ledger_summary(account_id)}
+
+
 @app.get("/accounts/me", response_model=AccountState)
 def account_state(account=Depends(require_account)):
     return AccountState(
@@ -366,7 +374,8 @@ def _charge_and_queue(account, prompt: str, tier_id: str,
     if not limits.device_limiter.allow(f"ask:{account_id}", config.RATE_LIMIT, 60.0):
         raise HTTPException(status_code=429, detail="Trop de questions à la suite")
     tier = config.TIERS.get(tier_id) or config.TIERS[config.DEFAULT_TIER]
-    if not db.spend_credits(account_id, tier["cost"]):
+    if not db.spend_credits(account_id, tier["cost"],
+                            label=f"Question — modèle {tier['label'].lower()}"):
         raise HTTPException(
             status_code=402,
             detail=(
@@ -462,7 +471,8 @@ def submit_answer(question_id: str, payload: AnswerSubmission,
     tier = config.TIERS.get(row["tier"] if row else config.DEFAULT_TIER,
                             config.TIERS[config.DEFAULT_TIER])
     reward = tier["reward"]
-    total = db.add_credits(device["device_id"], reward)
+    total = db.add_credits(device["device_id"], reward, kind="served",
+                           label=f"Réponse servie — modèle {tier['label'].lower()}")
     logger.info("Question %s traitée par %s (+%d crédits)",
                 question_id, device["device_name"], reward)
     return {"earned": reward, "total_credits": total}

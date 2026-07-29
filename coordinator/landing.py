@@ -113,13 +113,53 @@ button{font:inherit}
 .dots span:nth-child(2){animation-delay:.15s} .dots span:nth-child(3){animation-delay:.3s}
 @keyframes hop{0%,60%,100%{transform:translateY(0);opacity:.35}30%{transform:translateY(-4px);opacity:1}}
 
-.welcome{text-align:center; padding:2.5rem 0 1rem}
-.welcome h1{font-size:clamp(1.6rem,3.4vw,2.15rem); letter-spacing:-.025em; margin:0 0 .5rem}
-.welcome p{color:var(--soft); margin:0 auto; max-width:44ch}
-.samples{display:flex; gap:.5rem; flex-wrap:wrap; justify-content:center; margin-top:1.4rem}
+.welcome{text-align:center; padding:1.6rem 0 .5rem}
+.welcome h1{font-size:clamp(1.5rem,3.2vw,2rem); letter-spacing:-.025em; margin:0 0 .4rem}
+.welcome p{color:var(--soft); margin:0 auto; max-width:46ch}
+.samples{display:flex; gap:.5rem; flex-wrap:wrap; justify-content:center; margin-top:1.2rem}
 .samples button{background:var(--panel); border:1px solid var(--line); border-radius:999px;
   padding:.45rem .9rem; font-size:.88rem; color:var(--soft); cursor:pointer}
 .samples button:hover{border-color:var(--verd); color:var(--verd-deep)}
+
+/* ---- L'animation : le cycle, montré plutôt qu'expliqué ---- */
+.cycle{margin:1.8rem auto 0; max-width:660px; background:var(--panel);
+  border:1px solid var(--line); border-radius:14px; padding:1.2rem 1.1rem 1rem;
+  box-shadow:var(--lift)}
+.cycle h4{margin:0 0 .1rem; font-size:.95rem; text-align:center}
+.cycle .cap{margin:0 0 .9rem; font-size:.84rem; color:var(--soft); text-align:center}
+.stage{position:relative; height:132px}
+.node{position:absolute; top:50%; transform:translateY(-50%); text-align:center; width:104px}
+.node .ic{width:2.6rem; height:2.6rem; margin:0 auto .35rem; border-radius:11px;
+  display:grid; place-items:center; border:1px solid var(--line); background:var(--panel-2)}
+.node .lb{font-size:.76rem; color:var(--soft); line-height:1.25}
+.node.you{left:0} .node.net{left:50%; margin-left:-52px} .node.mate{right:0}
+.node.net .ic{background:var(--verd-pale); border-color:var(--verd)}
+.rail{position:absolute; left:104px; right:104px; top:50%; height:2px;
+  background:repeating-linear-gradient(90deg,var(--line) 0 6px,transparent 6px 12px)}
+.pip{position:absolute; top:50%; width:.62rem; height:.62rem; border-radius:50%;
+  margin-top:-.31rem; opacity:0}
+.pip.q{background:var(--verd-deep); animation:goRight 7s linear infinite}
+.pip.a{background:var(--amber); animation:goLeft 7s linear infinite}
+.pip.n{background:var(--verd); animation:night 7s ease-in-out infinite}
+@keyframes goRight{
+  0%{left:96px; opacity:0} 6%{opacity:1}
+  36%{left:calc(100% - 96px); opacity:1} 42%{opacity:0} 100%{opacity:0}}
+@keyframes goLeft{
+  0%,44%{opacity:0} 50%{left:calc(100% - 96px); opacity:1}
+  78%{left:96px; opacity:1} 84%{opacity:0} 100%{opacity:0}}
+@keyframes night{
+  0%,84%{opacity:0} 88%{left:calc(100% - 96px); opacity:1}
+  97%{left:96px; opacity:1} 100%{opacity:0}}
+.legend{display:grid; gap:.4rem; margin:.7rem 0 0; font-size:.82rem; color:var(--soft)}
+.legend div{display:flex; gap:.5rem; align-items:baseline}
+.legend i{width:.55rem; height:.55rem; border-radius:50%; flex:none; margin-top:.35rem}
+.legend .l1 i{background:var(--verd-deep)} .legend .l2 i{background:var(--amber)}
+.legend .l3 i{background:var(--verd)}
+.legend b{color:var(--ink); font-weight:600}
+@media (prefers-reduced-motion:reduce){ .pip{animation:none; opacity:1}
+  .pip.q{left:30%} .pip.a{left:60%} .pip.n{left:45%} }
+@media (max-width:520px){ .node{width:76px} .node.net{margin-left:-38px}
+  .rail{left:76px; right:76px} }
 
 .composer{border-top:1px solid var(--line); background:rgba(242,246,243,.9); padding:.85rem 1.1rem}
 .composer .inner{gap:.5rem}
@@ -200,6 +240,44 @@ dialog::backdrop{background:rgba(30,43,39,.4)}
 .dlg ul{margin:.6rem 0 0; padding:0; list-style:none; display:grid; gap:.35rem; font-size:.9rem}
 .dlg ul li{display:flex; gap:.5rem; color:var(--soft)}
 .dlg ul b{color:var(--ink)}
+
+/* ---- Le compte ---- */
+dialog#dlg{max-width:34rem}
+.acct-head{display:flex; align-items:flex-start; gap:1rem; margin-bottom:1rem}
+.acct-head h3{margin:0}
+.acct-head .sub{margin:.15rem 0 0; font-size:.83rem; color:var(--soft)}
+.bal-big{margin-left:auto; text-align:right; line-height:1.05}
+.bal-big b{font-size:1.9rem; color:var(--verd-deep); font-variant-numeric:tabular-nums}
+.bal-big span{display:block; font-size:.76rem; color:var(--soft)}
+.totals{display:grid; grid-template-columns:repeat(3,1fr); gap:.5rem; margin-bottom:1rem}
+.totals div{background:var(--panel-2); border:1px solid var(--line); border-radius:9px;
+  padding:.55rem .6rem; text-align:center}
+.totals b{display:block; font-size:1.02rem; font-variant-numeric:tabular-nums}
+.totals span{font-size:.74rem; color:var(--soft)}
+.up{color:var(--verd-deep)} .down{color:var(--amber)}
+.tabs{display:flex; gap:.25rem; border-bottom:1px solid var(--line); margin-bottom:.7rem;
+  overflow-x:auto}
+.tabs button{background:none; border:none; cursor:pointer; padding:.45rem .6rem;
+  font-size:.85rem; color:var(--soft); border-bottom:2px solid transparent; white-space:nowrap}
+.tabs button[aria-selected="true"]{color:var(--ink); border-color:var(--verd); font-weight:600}
+.tabbody{max-height:15rem; overflow-y:auto; margin-bottom:.4rem}
+.ledger{margin:0; padding:0; list-style:none; display:grid; gap:.1rem}
+.ledger li{display:grid; grid-template-columns:1.5rem 1fr auto auto; gap:.55rem;
+  align-items:center; padding:.45rem .2rem; border-bottom:1px solid var(--line)}
+.ledger .ic{text-align:center; font-size:.9rem}
+.ledger .what{display:flex; flex-direction:column; min-width:0}
+.ledger .what b{font-size:.88rem; font-weight:600; overflow:hidden; text-overflow:ellipsis;
+  white-space:nowrap}
+.ledger .what em{font-style:normal; font-size:.76rem; color:var(--soft)}
+.ledger .what time{font-size:.72rem; color:var(--soft)}
+.ledger .amt{font-variant-numeric:tabular-nums; font-weight:700; font-size:.9rem}
+.ledger .bal{font-variant-numeric:tabular-nums; font-size:.78rem; color:var(--soft);
+  min-width:2.4rem; text-align:right}
+.devs{margin:0; padding:0; list-style:none; display:grid; gap:.4rem}
+.devs li{display:flex; justify-content:space-between; gap:.6rem; padding:.5rem .65rem;
+  background:var(--panel-2); border:1px solid var(--line); border-radius:9px; font-size:.9rem}
+.devs span{color:var(--soft); font-size:.82rem}
+.empty{font-size:.86rem; color:var(--soft); margin:.6rem 0 0}
 </style>
 </head>
 <body>
@@ -228,18 +306,7 @@ dialog::backdrop{background:rgba(30,43,39,.4)}
     </div>
 
     <div class="stream" id="stream">
-      <div class="inner" id="turns">
-        <div class="welcome">
-          <h1>Pose ta question au réseau.</h1>
-          <p>Elle sera traitée par l'ordinateur d'un membre, pas par un datacenter.
-            Tu as des crédits offerts pour commencer.</p>
-          <div class="samples">
-            <button>Explique-moi la photosynthèse simplement</button>
-            <button>Écris un mot d'excuse à mon voisin</button>
-            <button>Combien font 17 % de 340 ?</button>
-          </div>
-        </div>
-      </div>
+      <div class="inner" id="turns"></div>
     </div>
 
     <div class="composer">
@@ -400,21 +467,92 @@ async function ensureAccount(){
     };
   });
 }
-$("wallet").onclick = async () => {
-  if(!account) return ensureAccount();
-  const me = await (await api("/accounts/me")).json();
-  account = {...me, key:account.key}; paintWallet();
-  const devices = me.devices.length
-    ? `<ul>${me.devices.map(d => `<li><b>${esc(d.device_name)}</b> · ${fmt(d.credits||0)} crédits gagnés</li>`).join("")}</ul>`
-    : `<p>Aucune machine rattachée. Installe Lenyay et rattache-la pour gagner des crédits
-       au lieu d'en dépenser.</p>`;
-  $("dlg-body").innerHTML = `<h3>${esc(me.handle)}</h3>
-    <p><b>${fmt(me.credits)} crédits</b></p>${devices}
-    <p style="margin-top:1rem">Ta clé de compte :</p>
-    <div class="key">${account.key}</div>
-    <button class="go" onclick="document.getElementById('dlg').close()">Fermer</button>`;
-  $("dlg").showModal();
+/* ---------- Le compte : solde, gains, dépenses, machines ---------- */
+const KINDS = {
+  welcome:  ["🎁", "Bienvenue"],
+  solved:   ["🧮", "Calculs"],
+  served:   ["💬", "Réponse servie"],
+  question: ["✳️", "Question"],
+  subscription: ["💳", "Abonnement"],
+  adjust:   ["•", "Ajustement"],
 };
+const when = iso => {
+  const d = new Date(iso);
+  return isNaN(d) ? "" : d.toLocaleDateString("fr-FR", {day:"2-digit", month:"short"}) +
+    " " + d.toLocaleTimeString("fr-FR", {hour:"2-digit", minute:"2-digit"});
+};
+function lines(entries){
+  if(!entries.length) return `<p class="empty">Rien pour l'instant.</p>`;
+  return `<ul class="ledger">` + entries.map(e => {
+    const [icon, fallback] = KINDS[e.kind] || KINDS.adjust;
+    return `<li>
+      <span class="ic">${icon}</span>
+      <span class="what"><b>${esc(e.label || fallback)}</b>
+        ${e.device_name ? `<em>${esc(e.device_name)}</em>` : ""}
+        <time>${when(e.created_at)}</time></span>
+      <span class="amt ${e.amount >= 0 ? "up" : "down"}">${e.amount >= 0 ? "+" : ""}${fmt(e.amount)}</span>
+      <span class="bal">${fmt(e.balance_after)}</span>
+    </li>`;
+  }).join("") + `</ul>`;
+}
+async function openAccount(tab = "solde"){
+  if(!account) return ensureAccount();
+  const [me, led] = await Promise.all([
+    (await api("/accounts/me")).json(),
+    (await api("/accounts/ledger")).json(),
+  ]);
+  account = {...me, key:account.key}; paintWallet();
+  const gains = led.entries.filter(e => e.amount > 0);
+  const depenses = led.entries.filter(e => e.amount < 0);
+  const devices = me.devices.length
+    ? `<ul class="devs">${me.devices.map(d =>
+        `<li><b>${esc(d.device_name)}</b><span>${fmt(d.credits||0)} crédits produits</span></li>`).join("")}</ul>`
+    : `<p class="empty">Aucune machine rattachée. Installe Lenyay et rattache-la :
+       tes nuits deviennent des crédits.</p>`;
+
+  $("dlg-body").innerHTML = `
+    <div class="acct-head">
+      <div>
+        <h3>${esc(me.handle)}</h3>
+        <p class="sub">Compte Lenyay · sans e-mail ni mot de passe</p>
+      </div>
+      <div class="bal-big"><b>${fmt(me.credits)}</b><span>crédits</span></div>
+    </div>
+    <div class="totals">
+      <div><b class="up">+${fmt(led.summary.earned)}</b><span>gagnés</span></div>
+      <div><b class="down">−${fmt(led.summary.spent)}</b><span>dépensés</span></div>
+      <div><b>${me.devices.length}</b><span>machine${me.devices.length > 1 ? "s" : ""}</span></div>
+    </div>
+    <div class="tabs" id="acct-tabs">
+      <button data-t="solde">Machines</button>
+      <button data-t="gains">Crédits gagnés</button>
+      <button data-t="depenses">Facturation</button>
+      <button data-t="cle">Ma clé</button>
+    </div>
+    <div class="tabbody" id="acct-body"></div>
+    <button class="go" onclick="document.getElementById('dlg').close()">Fermer</button>`;
+
+  const views = {
+    solde: devices,
+    gains: lines(gains),
+    depenses: depenses.length
+      ? lines(depenses) + `<p class="empty">Aucun paiement : Lenyay ne facture pas
+         d'argent. L'abonnement arrivera pour ceux qui préfèrent ne pas contribuer.</p>`
+      : `<p class="empty">Aucune dépense pour l'instant.</p>`,
+    cle: `<p class="empty">Ta clé est ta seule identité. Conserve-la pour retrouver ton
+       compte depuis un autre navigateur — personne ne peut te la renvoyer.</p>
+       <div class="key">${account.key}</div>`,
+  };
+  const show = t => {
+    $("acct-body").innerHTML = views[t];
+    $("acct-tabs").querySelectorAll("button").forEach(b =>
+      b.setAttribute("aria-selected", b.dataset.t === t));
+  };
+  $("acct-tabs").querySelectorAll("button").forEach(b => b.onclick = () => show(b.dataset.t));
+  show(tab);
+  $("dlg").showModal();
+}
+$("wallet").onclick = () => openAccount("solde");
 
 /* ---------- Fils ---------- */
 async function loadThreads(){
@@ -435,9 +573,46 @@ async function loadThreads(){
     loadThreads();
   });
 }
+/* L'accueil : on montre le cycle plutôt que de le raconter. Sans lui, on n'a
+   qu'un chatbot de plus — et personne ne comprend pourquoi prêter sa machine. */
 function blank(){
-  $("turns").innerHTML = `<div class="welcome"><h1>Pose ta question au réseau.</h1>
-    <p>Elle sera traitée par l'ordinateur d'un membre, pas par un datacenter.</p></div>`;
+  $("turns").innerHTML = `
+  <div class="welcome">
+    <h1>Pose ta question au réseau.</h1>
+    <p>Elle sera traitée par l'ordinateur d'un membre — pas par un datacenter.</p>
+
+    <div class="cycle">
+      <h4>Comment ça tourne</h4>
+      <p class="cap">Un aller-retour entre voisins, pas un service qu'on achète.</p>
+      <div class="stage">
+        <div class="rail"></div>
+        <span class="pip q"></span><span class="pip a"></span><span class="pip n"></span>
+        <div class="node you">
+          <div class="ic">💬</div><div class="lb">toi</div>
+        </div>
+        <div class="node net">
+          <div class="ic">🕸️</div><div class="lb">le réseau</div>
+        </div>
+        <div class="node mate">
+          <div class="ic">💻</div><div class="lb">la machine<br>d'un membre</div>
+        </div>
+      </div>
+      <div class="legend">
+        <div class="l1"><i></i><span><b>Ta question part</b> et coûte quelques crédits.</span></div>
+        <div class="l2"><i></i><span><b>La réponse revient</b>, signée par la machine qui l'a produite.</span></div>
+        <div class="l3"><i></i><span><b>La nuit, ta machine travaille à son tour</b> — elle résout des
+          problèmes vérifiables et te recrédite. C'est ça qui rend le service gratuit.</span></div>
+      </div>
+    </div>
+
+    <div class="samples">
+      <button>Explique-moi la photosynthèse simplement</button>
+      <button>Écris un mot d'excuse à mon voisin</button>
+      <button>Combien font 17 % de 340 ?</button>
+    </div>
+  </div>`;
+  document.querySelectorAll(".samples button").forEach(b =>
+    b.onclick = () => send(b.textContent.trim()));
 }
 async function openThread(id){
   conv = id;
@@ -533,7 +708,6 @@ $("q").addEventListener("input", e => {
   e.target.style.height = "auto";
   e.target.style.height = Math.min(e.target.scrollHeight, 144) + "px";
 });
-document.querySelectorAll(".samples button").forEach(b => b.onclick = () => send(b.textContent.trim()));
 $("new-conv").onclick = async () => {
   if(!await ensureAccount()) return;
   conv = null; blank(); loadThreads(); $("q").focus();

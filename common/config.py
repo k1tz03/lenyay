@@ -97,6 +97,12 @@ TIERS = {
         "reward": 12,
     },
 }
+# Le modèle GGUF associé à chaque palier : une machine « costaud » télécharge
+# le 7B (≈ 4,7 Go, il lui faut ~8 Go de mémoire libre).
+TIER_MODELS = {
+    "rapide": ("Qwen/Qwen2.5-1.5B-Instruct-GGUF", "q4_k_m"),
+    "costaud": ("Qwen/Qwen2.5-7B-Instruct-GGUF", "q4_k_m"),
+}
 DEFAULT_TIER = _env("DEFAULT_TIER", "rapide")
 # Le palier que cette machine sait servir (côté worker).
 WORKER_TIER = _env("TIER", "rapide")
