@@ -55,7 +55,12 @@ def _ensure_registered(client, device_file) -> dict:
         log.info("Identité chargée : %s (%s…)", identity["device_name"], identity["device_id"][:8])
         return identity
     device_name = f"worker-{platform.node() or 'inconnu'}"
-    creds = client.register(device_name)
+    from common import config
+
+    # LENYAY_ACCOUNT_KEY rattache la machine au compte de son propriétaire :
+    # ses gains alimentent alors sa bourse de crédits.
+    creds = client.register(device_name, config.WORKER_TIER,
+                            os.environ.get("LENYAY_ACCOUNT_KEY"))
     identity = {
         "device_id": creds.device_id,
         "api_key": creds.api_key,
@@ -172,8 +177,12 @@ def run() -> None:
                 # Priorité absolue : quelqu'un attend une réponse, maintenant.
                 question = client.take_question()
                 if question is not None:
-                    log.info("Question d'un membre : « %s »", question["prompt"][:70])
-                    answer = generator.answer(question["prompt"])
+                    contexte = question.get("context") or []
+                    log.info("Question d'un membre (%s%s) : « %s »",
+                             question.get("tier", "rapide"),
+                             f", {len(contexte)} msg de fil" if contexte else "",
+                             question["prompt"][:60])
+                    answer = generator.answer(question["prompt"], contexte)
                     result = client.answer_question(question["id"], answer)
                     stats["served"] += 1
                     stats["credits"] = result["total_credits"]

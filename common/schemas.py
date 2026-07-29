@@ -39,6 +39,8 @@ class RegisterRequest(BaseModel):
     device_name: str = Field(default="appareil-anonyme", max_length=64)
     # Lier l'appareil à un compte : ses gains alimentent alors la bourse.
     account_key: str | None = Field(default=None, max_length=128)
+    # Le palier de modèle que cette machine sait servir.
+    tier: str = Field(default="rapide", max_length=24)
 
 
 class RegisterResponse(BaseModel):
@@ -127,6 +129,31 @@ class QuestionState(BaseModel):
 class ServedQuestion(BaseModel):
     id: str
     prompt: str
+    tier: str = "rapide"
+    # La mémoire du fil : les échanges précédents, pour que la machine
+    # réponde en connaissance de cause.
+    context: list[dict] = Field(default_factory=list)
+
+
+class MessageRequest(BaseModel):
+    prompt: str = Field(min_length=1, max_length=4000)
+    tier: str = Field(default="rapide", max_length=24)
+
+
+class Conversation(BaseModel):
+    id: str
+    title: str
+    updated_at: str
+
+
+class ConversationList(BaseModel):
+    conversations: list[Conversation]
+
+
+class ConversationThread(BaseModel):
+    id: str
+    title: str
+    messages: list[dict]
 
 
 class ServeOffer(BaseModel):

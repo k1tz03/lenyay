@@ -71,8 +71,9 @@ class TestLanding:
         for marker in ("Lenyay", "IA gratuite", "datacenter", "Disponible",
                        "En construction", "--chat", "install.ps1", "install.sh",
                        "/dashboard",
-                       # le produit est utilisable sur place : chat et compte
-                       '"/ask"', "/accounts", "Créer un compte", "crédits"):
+                       # une application de conversation, pas une plaquette
+                       "/conversations", "/accounts", "/tiers", "crédits",
+                       "Nouvelle conversation", "abonn"):
             assert marker in html, marker
         # La page ne doit appeler aucun service tiers.
         for tiers in ("googleapis", "gstatic", "cdn.", "googletagmanager"):

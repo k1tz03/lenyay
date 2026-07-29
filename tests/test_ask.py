@@ -102,7 +102,8 @@ class TestQuestion:
 
     def test_sans_credit_refuse(self, ctx, monkeypatch):
         client, _ = ctx
-        monkeypatch.setattr("common.config.QUESTION_COST", 10_000)
+        # Le prix vient du palier de modèle choisi.
+        monkeypatch.setitem(config_mod.TIERS[config_mod.DEFAULT_TIER], "cost", 10_000)
         _, headers = _account(client)
         r = client.post("/ask", headers=headers, json={"prompt": "Bonjour ?"})
         assert r.status_code == 402  # crédits insuffisants

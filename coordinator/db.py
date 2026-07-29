@@ -30,21 +30,44 @@ CREATE TABLE IF NOT EXISTS accounts (
     created_at TEXT NOT NULL
 );
 
+-- Un fil de conversation, avec sa mémoire.
+CREATE TABLE IF NOT EXISTS conversations (
+    id         TEXT PRIMARY KEY,
+    account_id TEXT NOT NULL,
+    title      TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_conv_account ON conversations (account_id, updated_at);
+
+CREATE TABLE IF NOT EXISTS messages (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    conversation_id TEXT NOT NULL,
+    role            TEXT NOT NULL,
+    content         TEXT NOT NULL,
+    device_name     TEXT,
+    tier            TEXT,
+    created_at      TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_msg_conv ON messages (conversation_id, id);
+
 -- Les questions posées depuis le site, servies par les machines du réseau.
 CREATE TABLE IF NOT EXISTS questions (
-    id          TEXT PRIMARY KEY,
-    account_id  TEXT NOT NULL,
-    prompt      TEXT NOT NULL,
-    status      TEXT NOT NULL,
-    answer      TEXT,
-    served_by   TEXT,
-    device_name TEXT,
-    cost        INTEGER NOT NULL,
-    created_at  TEXT NOT NULL,
-    claimed_at  TEXT,
-    done_at     TEXT
+    id              TEXT PRIMARY KEY,
+    account_id      TEXT NOT NULL,
+    conversation_id TEXT,
+    tier            TEXT NOT NULL DEFAULT 'rapide',
+    prompt          TEXT NOT NULL,
+    status          TEXT NOT NULL,
+    answer          TEXT,
+    served_by       TEXT,
+    device_name     TEXT,
+    cost            INTEGER NOT NULL,
+    created_at      TEXT NOT NULL,
+    claimed_at      TEXT,
+    done_at         TEXT
 );
-CREATE INDEX IF NOT EXISTS idx_questions_status ON questions (status, created_at);
+CREATE INDEX IF NOT EXISTS idx_questions_status ON questions (status, tier, created_at);
 
 CREATE TABLE IF NOT EXISTS secrets (
     name  TEXT PRIMARY KEY,
@@ -118,6 +141,8 @@ def init_db() -> None:
         columns = {r["name"] for r in conn.execute("PRAGMA table_info(devices)")}
         if "account_id" not in columns:
             conn.execute("ALTER TABLE devices ADD COLUMN account_id TEXT")
+        if "tier" not in columns:
+            conn.execute("ALTER TABLE devices ADD COLUMN tier TEXT DEFAULT 'rapide'")
 
 
 _secret_cache: str | None = None
@@ -178,15 +203,16 @@ def submissions_today(device_id: str) -> int:
     return row["n"]
 
 
-def register_device(device_name: str, account_id: str | None = None) -> tuple[str, str]:
+def register_device(device_name: str, account_id: str | None = None,
+                    tier: str = "rapide") -> tuple[str, str]:
     device_id = uuid.uuid4().hex
     api_key = secrets.token_hex(24)
     now = _now()
     with _connect() as conn:
         conn.execute(
             "INSERT INTO devices (device_id, api_key, device_name, created_at, last_seen,"
-            " account_id) VALUES (?, ?, ?, ?, ?, ?)",
-            (device_id, api_key, device_name, now, now, account_id),
+            " account_id, tier) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (device_id, api_key, device_name, now, now, account_id, tier),
         )
         conn.execute("INSERT INTO credits (device_id, credits) VALUES (?, 0)", (device_id,))
     return device_id, api_key
@@ -301,15 +327,89 @@ def add_credits(device_id: str, amount: int) -> int:
 # --- Questions posées au réseau --------------------------------------------
 
 
-def create_question(account_id: str, prompt: str, cost: int) -> str:
+def create_question(account_id: str, prompt: str, cost: int,
+                    conversation_id: str | None = None, tier: str = "rapide") -> str:
     question_id = uuid.uuid4().hex[:16]
     with _connect() as conn:
         conn.execute(
-            "INSERT INTO questions (id, account_id, prompt, status, cost, created_at)"
-            " VALUES (?, ?, ?, 'pending', ?, ?)",
-            (question_id, account_id, prompt, cost, _now()),
+            "INSERT INTO questions (id, account_id, conversation_id, tier, prompt,"
+            " status, cost, created_at) VALUES (?, ?, ?, ?, ?, 'pending', ?, ?)",
+            (question_id, account_id, conversation_id, tier, prompt, cost, _now()),
         )
     return question_id
+
+
+# --- Conversations ----------------------------------------------------------
+
+
+def create_conversation(account_id: str, title: str = "Nouvelle conversation") -> dict:
+    conversation_id = uuid.uuid4().hex[:16]
+    now = _now()
+    with _connect() as conn:
+        conn.execute(
+            "INSERT INTO conversations (id, account_id, title, created_at, updated_at)"
+            " VALUES (?, ?, ?, ?, ?)",
+            (conversation_id, account_id, title, now, now),
+        )
+    return {"id": conversation_id, "title": title, "updated_at": now}
+
+
+def list_conversations(account_id: str, limit: int = 60) -> list[dict]:
+    with _connect() as conn:
+        rows = conn.execute(
+            "SELECT id, title, updated_at FROM conversations WHERE account_id = ?"
+            " ORDER BY updated_at DESC LIMIT ?",
+            (account_id, limit),
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def get_conversation(conversation_id: str, account_id: str) -> sqlite3.Row | None:
+    """Toujours filtré sur le compte : un fil n'appartient qu'à son auteur."""
+    with _connect() as conn:
+        return conn.execute(
+            "SELECT * FROM conversations WHERE id = ? AND account_id = ?",
+            (conversation_id, account_id),
+        ).fetchone()
+
+
+def delete_conversation(conversation_id: str, account_id: str) -> bool:
+    with _connect() as conn:
+        cur = conn.execute(
+            "DELETE FROM conversations WHERE id = ? AND account_id = ?",
+            (conversation_id, account_id),
+        )
+        if cur.rowcount:
+            conn.execute("DELETE FROM messages WHERE conversation_id = ?", (conversation_id,))
+        return cur.rowcount == 1
+
+
+def add_message(conversation_id: str, role: str, content: str,
+                device_name: str | None = None, tier: str | None = None) -> None:
+    now = _now()
+    with _connect() as conn:
+        conn.execute(
+            "INSERT INTO messages (conversation_id, role, content, device_name, tier,"
+            " created_at) VALUES (?, ?, ?, ?, ?, ?)",
+            (conversation_id, role, content, device_name, tier, now),
+        )
+        conn.execute("UPDATE conversations SET updated_at = ? WHERE id = ?",
+                     (now, conversation_id))
+
+
+def conversation_messages(conversation_id: str, limit: int | None = None) -> list[dict]:
+    query = ("SELECT role, content, device_name, tier, created_at FROM messages"
+             " WHERE conversation_id = ? ORDER BY id")
+    with _connect() as conn:
+        rows = conn.execute(query, (conversation_id,)).fetchall()
+    messages = [dict(r) for r in rows]
+    return messages[-limit:] if limit else messages
+
+
+def set_conversation_title(conversation_id: str, title: str) -> None:
+    with _connect() as conn:
+        conn.execute("UPDATE conversations SET title = ? WHERE id = ?",
+                     (title, conversation_id))
 
 
 def get_question(question_id: str) -> sqlite3.Row | None:
@@ -318,16 +418,17 @@ def get_question(question_id: str) -> sqlite3.Row | None:
             "SELECT * FROM questions WHERE id = ?", (question_id,)).fetchone()
 
 
-def claim_question(device_id: str, device_name: str) -> sqlite3.Row | None:
-    """Attribue la plus ancienne question en attente à cet appareil.
+def claim_question(device_id: str, device_name: str,
+                   tier: str = "rapide") -> sqlite3.Row | None:
+    """Attribue la plus ancienne question EN ATTENTE DE CE PALIER à cet appareil.
 
     La mise à jour conditionnelle fait office de verrou : deux machines qui
     tirent en même temps ne peuvent pas décrocher la même question.
     """
     with _connect() as conn:
         row = conn.execute(
-            "SELECT id FROM questions WHERE status = 'pending'"
-            " ORDER BY created_at LIMIT 1").fetchone()
+            "SELECT id FROM questions WHERE status = 'pending' AND tier = ?"
+            " ORDER BY created_at LIMIT 1", (tier,)).fetchone()
         if row is None:
             return None
         cur = conn.execute(

@@ -25,6 +25,10 @@ from common.schemas import (  # noqa: F401 — l'API expose ces modèles
     AnswerSubmission,
     AskRequest,
     AskResponse,
+    Conversation,
+    ConversationList,
+    ConversationThread,
+    MessageRequest,
     QuestionState,
     ServedQuestion,
     ServeOffer,
@@ -157,7 +161,8 @@ def register(payload: RegisterRequest, request: Request):
         if account is None:
             raise HTTPException(status_code=401, detail="Clé de compte inconnue")
         account_id = account["account_id"]
-    device_id, api_key = db.register_device(payload.device_name, account_id)
+    tier = payload.tier if payload.tier in config.TIERS else config.DEFAULT_TIER
+    device_id, api_key = db.register_device(payload.device_name, account_id, tier)
     logger.info("Nouvel appareil enregistré : %s (%s)", payload.device_name, device_id[:8])
     return RegisterResponse(device_id=device_id, api_key=api_key)
 
@@ -308,27 +313,99 @@ def account_state(account=Depends(require_account)):
     )
 
 
-# --- Poser une question au réseau ------------------------------------------
+# --- Paliers de modèles -----------------------------------------------------
+
+
+@app.get("/tiers")
+def tiers():
+    """Les modèles proposés, leur prix et ce qu'ils rapportent à qui les sert."""
+    return {"tiers": list(config.TIERS.values()), "default": config.DEFAULT_TIER}
+
+
+# --- Conversations ----------------------------------------------------------
+
+
+def _owned_conversation(conversation_id: str, account):
+    conv = db.get_conversation(conversation_id, account["account_id"])
+    if conv is None:
+        raise HTTPException(status_code=404, detail="Conversation introuvable")
+    return conv
+
+
+@app.post("/conversations", response_model=Conversation)
+def new_conversation(account=Depends(require_account)):
+    conv = db.create_conversation(account["account_id"])
+    return Conversation(**conv)
+
+
+@app.get("/conversations", response_model=ConversationList)
+def conversations(account=Depends(require_account)):
+    return ConversationList(
+        conversations=[Conversation(**c) for c in db.list_conversations(account["account_id"])]
+    )
+
+
+@app.get("/conversations/{conversation_id}", response_model=ConversationThread)
+def conversation_thread(conversation_id: str, account=Depends(require_account)):
+    conv = _owned_conversation(conversation_id, account)
+    return ConversationThread(id=conv["id"], title=conv["title"],
+                              messages=db.conversation_messages(conversation_id))
+
+
+@app.delete("/conversations/{conversation_id}")
+def remove_conversation(conversation_id: str, account=Depends(require_account)):
+    if not db.delete_conversation(conversation_id, account["account_id"]):
+        raise HTTPException(status_code=404, detail="Conversation introuvable")
+    return {"deleted": conversation_id}
+
+
+def _charge_and_queue(account, prompt: str, tier_id: str,
+                      conversation_id: str | None) -> AskResponse:
+    """Débite le compte au tarif du palier, puis met la question en file."""
+    account_id = account["account_id"]
+    if not limits.device_limiter.allow(f"ask:{account_id}", config.RATE_LIMIT, 60.0):
+        raise HTTPException(status_code=429, detail="Trop de questions à la suite")
+    tier = config.TIERS.get(tier_id) or config.TIERS[config.DEFAULT_TIER]
+    if not db.spend_credits(account_id, tier["cost"]):
+        raise HTTPException(
+            status_code=402,
+            detail=(
+                f"Crédits insuffisants : « {tier['label']} » en coûte {tier['cost']}. "
+                "Deux façons d'en avoir : contribuer en laissant Lenyay tourner sur ta "
+                "machine, ou prendre un abonnement (bientôt disponible)."
+            ),
+        )
+    question_id = db.create_question(account_id, prompt, tier["cost"],
+                                     conversation_id, tier["id"])
+    remaining = db.account_for_key(account["api_key"])["credits"]
+    logger.info("Question %s (%s) posée par %s", question_id, tier["id"], account["handle"])
+    return AskResponse(question_id=question_id, status="pending",
+                       cost=tier["cost"], credits_left=remaining)
+
+
+@app.post("/conversations/{conversation_id}/messages", response_model=AskResponse)
+def post_message(conversation_id: str, payload: MessageRequest,
+                 account=Depends(require_account)):
+    """Un message dans un fil : la mémoire de la conversation part avec lui."""
+    conv = _owned_conversation(conversation_id, account)
+    prompt = payload.prompt.strip()
+    response = _charge_and_queue(account, prompt, payload.tier, conversation_id)
+    db.add_message(conversation_id, "user", prompt, tier=payload.tier)
+    if conv["title"] == "Nouvelle conversation":
+        # Le titre du fil vient de sa première phrase, comme partout ailleurs.
+        title = prompt[:60] + ("…" if len(prompt) > 60 else "")
+        db.set_conversation_title(conversation_id, title)
+    return response
+
+
+# --- Poser une question au réseau (sans fil) --------------------------------
 
 
 @app.post("/ask", response_model=AskResponse)
 def ask(payload: AskRequest, account=Depends(require_account)):
     """Le chaînon : une question part sur le réseau et sera traitée par la
     machine d'un autre membre, payée en crédits."""
-    account_id = account["account_id"]
-    if not limits.device_limiter.allow(f"ask:{account_id}", config.RATE_LIMIT, 60.0):
-        raise HTTPException(status_code=429, detail="Trop de questions à la suite")
-    if not db.spend_credits(account_id, config.QUESTION_COST):
-        raise HTTPException(
-            status_code=402,
-            detail=f"Crédits insuffisants : il en faut {config.QUESTION_COST}. "
-                   "Fais tourner Lenyay pour en gagner.",
-        )
-    question_id = db.create_question(account_id, payload.prompt.strip(), config.QUESTION_COST)
-    remaining = db.account_for_key(account["api_key"])["credits"]
-    logger.info("Question %s posée par %s", question_id, account["handle"])
-    return AskResponse(question_id=question_id, status="pending",
-                       cost=config.QUESTION_COST, credits_left=remaining)
+    return _charge_and_queue(account, payload.prompt.strip(), config.DEFAULT_TIER, None)
 
 
 @app.get("/ask/{question_id}", response_model=QuestionState)
@@ -353,25 +430,42 @@ def serve(device=Depends(require_device)):
         # On ne confie pas la parole du réseau à une machine sans historique.
         return ServeOffer(question=None)
     db.release_stale_questions(config.SERVE_TIMEOUT)
-    row = db.claim_question(device_id, device["device_name"])
+    tier = device["tier"] if "tier" in device.keys() and device["tier"] else config.DEFAULT_TIER
+    row = db.claim_question(device_id, device["device_name"], tier)
     if row is None:
         return ServeOffer(question=None)
-    logger.info("Question %s confiée à %s", row["id"], device["device_name"])
-    return ServeOffer(question=ServedQuestion(id=row["id"], prompt=row["prompt"]))
+    # La mémoire du fil accompagne la question : la machine répond en
+    # connaissant les échanges précédents, comme un vrai assistant.
+    context: list[dict] = []
+    if row["conversation_id"]:
+        history = db.conversation_messages(row["conversation_id"], config.CONTEXT_MESSAGES)
+        context = [{"role": m["role"], "content": m["content"]}
+                   for m in history if m["content"] != row["prompt"]]
+    logger.info("Question %s (%s) confiée à %s", row["id"], tier, device["device_name"])
+    return ServeOffer(question=ServedQuestion(
+        id=row["id"], prompt=row["prompt"], tier=row["tier"], context=context))
 
 
 @app.post("/serve/{question_id}")
 def submit_answer(question_id: str, payload: AnswerSubmission,
                   device=Depends(require_device)):
-    if not db.answer_question(question_id, device["device_id"], payload.answer.strip()):
+    row = db.get_question(question_id)
+    answer = payload.answer.strip()
+    if not db.answer_question(question_id, device["device_id"], answer):
         raise HTTPException(
             status_code=409,
             detail="Cette question ne t'a pas été confiée, ou a déjà été traitée.",
         )
-    total = db.add_credits(device["device_id"], config.SERVE_REWARD)
+    if row is not None and row["conversation_id"]:
+        db.add_message(row["conversation_id"], "assistant", answer,
+                       device_name=device["device_name"], tier=row["tier"])
+    tier = config.TIERS.get(row["tier"] if row else config.DEFAULT_TIER,
+                            config.TIERS[config.DEFAULT_TIER])
+    reward = tier["reward"]
+    total = db.add_credits(device["device_id"], reward)
     logger.info("Question %s traitée par %s (+%d crédits)",
-                question_id, device["device_name"], config.SERVE_REWARD)
-    return {"earned": config.SERVE_REWARD, "total_credits": total}
+                question_id, device["device_name"], reward)
+    return {"earned": reward, "total_credits": total}
 
 
 @app.get("/stats", response_model=Stats)

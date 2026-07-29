@@ -37,8 +37,9 @@ class MockGenerator:
             answer = str(random.randint(0, 999))
         return f"(trace simulée) Je réfléchis pas à pas... #### {answer}"
 
-    def answer(self, question: str) -> str:
-        return f"(réponse simulée à : {question[:60]})"
+    def answer(self, question: str, context: list[dict] | None = None) -> str:
+        suite = f" [{len(context)} message(s) de contexte]" if context else ""
+        return f"(réponse simulée à : {question[:60]}){suite}"
 
 
 def make_generator():

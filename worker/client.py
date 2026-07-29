@@ -22,10 +22,12 @@ class CoordinatorClient:
     def _headers(self) -> dict[str, str]:
         return {"X-API-Key": self._api_key} if self._api_key else {}
 
-    def register(self, device_name: str) -> RegisterResponse:
+    def register(self, device_name: str, tier: str = "rapide",
+                 account_key: str | None = None) -> RegisterResponse:
         resp = self._http.post(
             "/devices/register",
-            json=RegisterRequest(device_name=device_name).model_dump(),
+            json=RegisterRequest(device_name=device_name, tier=tier,
+                                 account_key=account_key).model_dump(),
         )
         resp.raise_for_status()
         creds = RegisterResponse(**resp.json())

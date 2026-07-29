@@ -74,6 +74,35 @@ MAX_ATTEMPTS_PER_TASK = int(_env("MAX_ATTEMPTS_PER_TASK", "8"))
 # Appareils distincts en échec avant qu'une tâche soit déclarée « dure ».
 HARD_MIN_DEVICES = int(_env("HARD_MIN_DEVICES", "2"))
 
+# --- Paliers de modèles ----------------------------------------------------
+# Un palier = un modèle, un prix, une récompense. Une machine déclare celui
+# qu'elle sait servir ; le coordinateur n'envoie une question qu'aux machines
+# du bon palier. Servir un gros modèle demande plus de mémoire, donc rapporte
+# davantage.
+TIERS = {
+    "rapide": {
+        "id": "rapide",
+        "label": "Rapide",
+        "model": "Qwen2.5 1.5B",
+        "about": "Questions courantes, réponses en quelques secondes.",
+        "cost": 1,
+        "reward": 3,
+    },
+    "costaud": {
+        "id": "costaud",
+        "label": "Costaud",
+        "model": "Qwen2.5 7B",
+        "about": "Raisonnements longs, rédaction, code. Plus lent, plus cher.",
+        "cost": 5,
+        "reward": 12,
+    },
+}
+DEFAULT_TIER = _env("DEFAULT_TIER", "rapide")
+# Le palier que cette machine sait servir (côté worker).
+WORKER_TIER = _env("TIER", "rapide")
+# Messages du fil transmis à la machine comme mémoire de la conversation.
+CONTEXT_MESSAGES = int(_env("CONTEXT_MESSAGES", "8"))
+
 # --- Comptes et questions --------------------------------------------------
 # Crédits offerts à l'ouverture d'un compte : de quoi essayer l'IA sans rien
 # donner d'abord — c'est la promesse « gratuite » tenue dès la première minute.

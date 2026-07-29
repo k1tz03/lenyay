@@ -92,15 +92,16 @@ class LlamaGenerator:
         )
         return output["choices"][0]["message"]["content"] or ""
 
-    def answer(self, question: str) -> str:
-        """Répondre à la question d'un membre du réseau — pas un calcul vérifié,
-        une vraie conversation. Ton posé, français, sans bavardage."""
+    def answer(self, question: str, context: list[dict] | None = None) -> str:
+        """Répondre à un membre du réseau — pas un calcul vérifié, une vraie
+        conversation. Le contexte est la mémoire du fil : sans lui, l'assistant
+        oublierait ce qui vient d'être dit."""
+        messages = [{"role": "system", "content": ASSISTANT_PROMPT}]
+        for entry in (context or []):
+            if entry.get("role") in {"user", "assistant"} and entry.get("content"):
+                messages.append({"role": entry["role"], "content": entry["content"]})
+        messages.append({"role": "user", "content": question})
         output = self._llm.create_chat_completion(
-            messages=[
-                {"role": "system", "content": ASSISTANT_PROMPT},
-                {"role": "user", "content": question},
-            ],
-            temperature=0.7,
-            max_tokens=config.MAX_TOKENS,
+            messages=messages, temperature=0.7, max_tokens=config.MAX_TOKENS,
         )
         return output["choices"][0]["message"]["content"] or ""
