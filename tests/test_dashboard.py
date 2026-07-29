@@ -59,10 +59,32 @@ class TestStatsEnrichies:
         assert top["last_seen"]  # horodatage ISO non vide → « dernière activité »
 
 
+class TestLanding:
+    def test_vitrine_publique_sur_la_racine(self, client_and_answers):
+        client, _ = client_and_answers
+        response = client.get("/")
+        assert response.status_code == 200
+        html = response.text
+        # Ce qu'un visiteur doit trouver : la promesse, la preuve, la commande.
+        for marker in ("Lenyay", "Rejoindre", "71,5", "71,0", "install.ps1",
+                       "install.sh", "/dashboard"):
+            assert marker in html, marker
+        # La page ne doit appeler aucun service tiers.
+        for tiers in ("googleapis", "gstatic", "cdn.", "googletagmanager"):
+            assert tiers not in html, tiers
+
+    def test_polices_servies_par_le_site(self, client_and_answers):
+        client, _ = client_and_answers
+        for name in ("fraunces-latin.woff2", "plexmono-latin.woff2"):
+            response = client.get(f"/static/fonts/{name}")
+            assert response.status_code == 200
+            assert response.content[:4] == b"wOF2"
+
+
 class TestDashboard:
     def test_page_lenyay_live_sans_rechargement_complet(self, client_and_answers):
         client, _ = client_and_answers
-        response = client.get("/")
+        response = client.get("/dashboard")
         assert response.status_code == 200
         html = response.text
         assert "Lenyay" in html

@@ -82,7 +82,8 @@ Diagnostic de la machine avant de lancer quoi que ce soit :
 .venv/Scripts/python.exe -m worker.main --check
 ```
 
-Puis ouvre **http://127.0.0.1:8000/** : appareils vus, rollouts totaux, taux
+Puis ouvre **http://127.0.0.1:8000/** (la page publique) et
+**http://127.0.0.1:8000/dashboard** : appareils vus, rollouts totaux, taux
 d'acceptation et top contributeurs, rafraîchis toutes les 5 s. `Ctrl+C` arrête
 le worker proprement avec un résumé de session. Les traces acceptées
 s'accumulent dans `data/accepted/accepted-<date>.jsonl`.

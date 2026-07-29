@@ -11,9 +11,11 @@ import threading
 import time
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
+from pathlib import Path
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 
 from common import config
 from common.schemas import (
@@ -27,6 +29,7 @@ from common.schemas import (
     WorkBatch,
 )
 from coordinator import db, leases, limits, tasks
+from coordinator.landing import LANDING_HTML
 from coordinator.verifier import verify
 
 logger = logging.getLogger("lenyay.coordinator")
@@ -74,6 +77,12 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title="Lenyay — coordinateur", lifespan=lifespan)
+
+# Polices de la page publique, servies avec le site : aucun appel à un CDN
+# tiers, la page ne fait fuiter aucune visite.
+_STATIC = Path(__file__).resolve().parent / "static"
+_STATIC.mkdir(parents=True, exist_ok=True)
+app.mount("/static", StaticFiles(directory=_STATIC), name="static")
 
 
 def require_device(x_api_key: str | None = Header(default=None, alias="X-API-Key")):
@@ -421,6 +430,12 @@ setInterval(tick, 4000);
 
 
 @app.get("/", response_class=HTMLResponse)
+def landing():
+    """La vitrine publique : ce que voit un visiteur qui découvre Lenyay."""
+    return LANDING_HTML
+
+
+@app.get("/dashboard", response_class=HTMLResponse)
 def dashboard():
     return _PAGE
 
