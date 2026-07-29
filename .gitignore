@@ -18,3 +18,8 @@ data/essaim.db*
 
 # Divers
 .env
+
+# Artefacts de compilation de l application de bureau
+dist/
+build/
+*.spec

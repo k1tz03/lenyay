@@ -70,7 +70,9 @@ class TestLanding:
         for marker in ("Lenyay", "datacenter", "/conversations", "/accounts",
                        "/tiers", "crédits", "Nouvelle conversation",
                        "/decouvrir", "/dashboard", "Se connecter",
-                       "/auth/login", "/auth/register"):
+                       "/auth/login", "/auth/register",
+                       # le mode application de bureau et la FAQ
+                       "faq-link", "pywebviewready", "Contribuer"):
             assert marker in html, marker
         # La page ne doit appeler aucun service tiers.
         for tiers in ("googleapis", "gstatic", "cdn.", "googletagmanager"):

@@ -74,8 +74,12 @@ tâches **vérifiables**. Extensions atteignables par ordre de difficulté :
 
 ## Mobile — Android d'abord, iOS à part
 
-- **Desktop** : déjà livré — l'installeur en une commande EST la version
-  desktop (worker + `--chat` + le site pour converser).
+- **Desktop (novices)** : application fenêtrée `Lenyay.exe` — chat, compte,
+  FAQ et interrupteur « Contribuer », rien du site. Distribuée par
+  `Lenyay-Setup.exe` (double-clic, raccourcis Bureau + menu Démarrer,
+  désinstallation propre ; les crédits restent sur le compte en ligne).
+  Construction : `scripts/build_desktop.ps1`. La ligne de commande reste
+  disponible pour les techniciens (install.ps1 / install.sh).
 - **Android (4–6 sem.)** : le seul mobile qui peut vraiment CONTRIBUER. Un
   service de premier plan pendant la charge nocturne peut faire tourner le
   1,5 B (les téléphones récents le portent) : le téléphone gagne des crédits

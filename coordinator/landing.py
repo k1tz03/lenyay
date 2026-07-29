@@ -69,6 +69,18 @@ button{font:inherit}
 .wallet .g{margin-left:auto; font-weight:500; opacity:.8; font-size:.8rem}
 .sidelink{color:var(--soft); font-size:.85rem; text-decoration:none}
 .sidelink:hover{color:var(--verd-deep)}
+.aslink{background:none; border:none; padding:0; text-align:left; cursor:pointer}
+
+/* ---- Mode application (bureau) : le chat, le compte, la FAQ — pas le site */
+body.desktop .topnav, body.desktop .weblink{display:none}
+#contrib{display:grid; gap:.35rem; padding:.6rem .65rem; background:var(--panel);
+  border:1px solid var(--line); border-radius:10px}
+.ctoggle{display:flex; align-items:center; gap:.5rem; font:inherit; font-size:.87rem;
+  font-weight:600; border:none; background:none; cursor:pointer; color:var(--ink);
+  padding:0}
+.ctoggle i{width:.6rem; height:.6rem; border-radius:50%; background:#B9C6BE; flex:none}
+.ctoggle[aria-pressed="true"] i{background:var(--verd); animation:beat 2.4s infinite}
+.cstatus{margin:0; font-size:.76rem; color:var(--soft); line-height:1.35}
 
 /* ---- Zone de conversation ---- */
 .main{display:flex; flex-direction:column; min-width:0; min-height:0}
@@ -254,6 +266,9 @@ dialog#dlg{max-width:34rem}
 .empty{font-size:.86rem; color:var(--soft); margin:.6rem 0 0}
 .optrow{margin:.2rem 0 1rem; padding:.7rem .8rem; background:var(--panel-2);
   border:1px solid var(--line); border-radius:9px}
+details.faq{border-bottom:1px solid var(--line); padding:.45rem 0}
+details.faq summary{cursor:pointer; font-weight:600; font-size:.94rem}
+details.faq p{margin:.45rem 0 .2rem; font-size:.9rem; color:var(--soft)}
 </style>
 </head>
 <body>
@@ -269,8 +284,14 @@ dialog#dlg{max-width:34rem}
       <button class="wallet" id="wallet">
         <span id="wallet-n">—</span> crédits <span class="g" id="wallet-who">compte</span>
       </button>
-      <a class="sidelink" href="/decouvrir">Qu'est-ce que Lenyay ?</a>
-      <a class="sidelink" href="/dashboard">Le réseau en direct</a>
+      <div id="contrib" hidden>
+        <button class="ctoggle" id="ctoggle"><i></i><span>Contribuer : arrêté</span></button>
+        <p class="cstatus" id="cstatus">Ta machine peut gagner des crédits en
+          travaillant pour le réseau.</p>
+      </div>
+      <button class="sidelink aslink" id="faq-link">FAQ &amp; aide</button>
+      <a class="sidelink weblink" href="/decouvrir">Qu'est-ce que Lenyay ?</a>
+      <a class="sidelink weblink" href="/dashboard">Le réseau en direct</a>
     </footer>
   </aside>
 
@@ -345,6 +366,10 @@ async function loadAccount(){
   if(!r.ok) return;
   account = await r.json(); account.key = account.account_key;
   paintWallet(); loadThreads();
+  // Application de bureau : la machine se rattache au compte toute seule.
+  if(window.pywebview && account.key){
+    try{ window.pywebview.api.set_account_key(account.key); }catch(e){}
+  }
 }
 function paintWallet(){
   if(!account) return;
@@ -777,6 +802,81 @@ $("copy").onclick = async e => {
 // L'accueil s'affiche AVANT tout appel réseau : même hors ligne, le visiteur
 // doit comprendre où il est tombé et comment le réseau fonctionne.
 blank();
+/* ---------- FAQ (web et application) ---------- */
+const FAQ = [
+  ["C'est quoi, Lenyay ?",
+   "Une IA sans datacenter : chaque réponse est produite par l'ordinateur d'un " +
+   "membre du réseau. Le jour tu poses tes questions, la nuit ta machine peut " +
+   "travailler pour les autres et te faire gagner des crédits."],
+  ["Combien ça coûte ?",
+   "Rien. Tu reçois 20 crédits à l'inscription, et chaque jour ton solde " +
+   "remonte à 5 crédits minimum — de quoi poser quelques questions simples. " +
+   "Pour un usage intensif : laisse ta machine contribuer, chaque calcul " +
+   "vérifié te recrédite sans limite."],
+  ["C'est quoi, les crédits ?",
+   "Le compteur du troc : une question en coûte quelques-uns (1 à 20 selon le " +
+   "modèle), un travail rendu par ta machine en rapporte davantage. Ils ne " +
+   "s'achètent pas et ne valent pas d'argent."],
+  ["Comment contribuer ?",
+   "Active « Contribuer » dans l'application (ou lance le programme Lenyay " +
+   "sur ton ordinateur). Ta machine résout des problèmes vérifiables — maths, " +
+   "code — et sert les questions des autres membres. Tu arrêtes quand tu veux."],
+  ["Mes conversations sont-elles privées ?",
+   "Ta question est lue par la machine du membre qui y répond — n'y mets rien " +
+   "de confidentiel. Rien ne sert à entraîner le modèle sans ton accord " +
+   "explicite ET un 👍 de ta part, après retrait des données personnelles " +
+   "(e-mails, numéros)."],
+  ["Pourquoi la réponse met parfois du temps ?",
+   "Il faut qu'une machine du réseau soit disponible pour ton modèle. Les " +
+   "modèles sans machine en ligne sont grisés. Tu peux aussi régénérer une " +
+   "réponse qui ne convient pas — une autre machine s'en chargera."],
+  ["Comment supprimer mon compte ou mes données ?",
+   "Supprime tes conversations une à une (elles disparaissent immédiatement), " +
+   "et écris-nous pour l'effacement complet du compte — c'est un droit, pas " +
+   "une faveur."],
+];
+$("faq-link").onclick = () => {
+  $("dlg-body").innerHTML = `<h3>FAQ &amp; aide</h3>` +
+    FAQ.map(([q, a]) => `<details class="faq"><summary>${esc(q)}</summary>
+      <p>${esc(a)}</p></details>`).join("") +
+    `<button class="go" onclick="document.getElementById('dlg').close()">Fermer</button>`;
+  $("dlg").showModal();
+};
+
+/* ---------- Mode application (bureau) ---------- */
+/* La coquille pywebview injecte window.pywebview : on masque le site, on
+   branche l'interrupteur Contribuer sur le worker local. */
+let deskTimer = null;
+async function paintContrib(){
+  try{
+    const s = await window.pywebview.api.status();
+    $("ctoggle").setAttribute("aria-pressed", s.running);
+    $("ctoggle").querySelector("span").textContent =
+      "Contribuer : " + (s.running ? "actif" : "arrêté");
+    $("cstatus").textContent = s.running
+      ? (s.detail || "Ta machine travaille pour le réseau.")
+      : "Ta machine peut gagner des crédits en travaillant pour le réseau.";
+  }catch(e){}
+}
+function setupDesktop(){
+  if(!window.pywebview) return;
+  document.body.classList.add("desktop");
+  $("contrib").hidden = false;
+  $("ctoggle").onclick = async () => {
+    const s = await window.pywebview.api.status();
+    if(s.running){ await window.pywebview.api.stop_contribute(); }
+    else{
+      if(account && account.key) await window.pywebview.api.set_account_key(account.key);
+      await window.pywebview.api.start_contribute();
+    }
+    paintContrib();
+  };
+  clearInterval(deskTimer); deskTimer = setInterval(paintContrib, 5000);
+  paintContrib();
+}
+window.addEventListener("pywebviewready", setupDesktop);
+if(window.pywebview) setupDesktop();
+
 loadTiers(); loadAccount(); net(); setInterval(net, 15000);
 </script>
 </body>
