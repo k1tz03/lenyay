@@ -11,7 +11,7 @@ import threading
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Query
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse
 
 from common import config
@@ -25,7 +25,7 @@ from common.schemas import (
     Verdict,
     WorkBatch,
 )
-from coordinator import db, tasks
+from coordinator import db, limits, tasks
 from coordinator.verifier import verify
 
 logger = logging.getLogger("lenyay.coordinator")
@@ -51,6 +51,8 @@ def require_device(x_api_key: str | None = Header(default=None, alias="X-API-Key
     device = db.device_for_key(x_api_key)
     if device is None:
         raise HTTPException(status_code=401, detail="Clé API inconnue")
+    if not limits.device_limiter.allow(x_api_key, config.RATE_LIMIT, 60.0):
+        raise HTTPException(status_code=429, detail="Trop de requêtes — ralentis un peu")
     return device
 
 
@@ -82,7 +84,13 @@ def _archive_accepted(
 
 
 @app.post("/devices/register", response_model=RegisterResponse)
-def register(payload: RegisterRequest):
+def register(payload: RegisterRequest, request: Request):
+    client_ip = request.client.host if request.client else "inconnue"
+    if not limits.register_limiter.allow(client_ip, config.REGISTER_LIMIT, 3600.0):
+        raise HTTPException(
+            status_code=429,
+            detail="Trop d'enregistrements depuis cette adresse — réessaie plus tard",
+        )
     device_id, api_key = db.register_device(payload.device_name)
     logger.info("Nouvel appareil enregistré : %s (%s)", payload.device_name, device_id[:8])
     return RegisterResponse(device_id=device_id, api_key=api_key)
@@ -106,6 +114,7 @@ def submit_results(payload: ResultsPayload, device=Depends(require_device)):
     # Une tâche déjà acceptée par cet appareil ne rapporte plus rien : pas de
     # nouveau crédit, pas de doublon dans le dataset (le rollout reste journalisé).
     already_accepted = db.accepted_task_ids(device_id)
+    credited_today = db.accepted_today(device_id)
     verdicts: list[Verdict] = []
     earned = 0
     for result in payload.results:
@@ -117,13 +126,24 @@ def submit_results(payload: ResultsPayload, device=Depends(require_device)):
             )
             continue
         accepted, extracted = verify(result.trace, task.expected_answer)
+        if accepted and len(result.trace.strip()) < config.MIN_TRACE_CHARS:
+            # Bonne réponse sans raisonnement : aucune valeur pour le dataset,
+            # et signature classique d'une réponse copiée. Pas de crédit.
+            accepted = False
+            logger.info("Trace creuse refusée : %s sur %s",
+                        device["device_name"], result.task_id)
         db.record_rollout(
             device_id, result.task_id, result.attempt, result.trace, extracted, accepted
         )
         if accepted and result.task_id not in already_accepted:
-            earned += 1
-            _archive_accepted(device_id, task, result.trace, extracted, result.attempt)
-            already_accepted.add(result.task_id)
+            if config.DAILY_CREDIT_CAP and credited_today + earned >= config.DAILY_CREDIT_CAP:
+                # Plafond quotidien : le verdict reste honnête, mais ni crédit
+                # ni entrée au dataset (anti-farming).
+                logger.info("Plafond quotidien atteint pour %s", device["device_name"])
+            else:
+                earned += 1
+                _archive_accepted(device_id, task, result.trace, extracted, result.attempt)
+                already_accepted.add(result.task_id)
         verdicts.append(
             Verdict(task_id=result.task_id, accepted=accepted,
                     extracted_answer=extracted, attempt=result.attempt)

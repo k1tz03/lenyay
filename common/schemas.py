@@ -4,7 +4,7 @@ Règle de confiance centrale : `Task` (ce que voit le worker) ne contient JAMAIS
 la réponse attendue. `TaskWithAnswer` n'existe que côté coordinateur.
 """
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 # --- Tâches ---------------------------------------------------------------
@@ -31,7 +31,7 @@ class WorkBatch(BaseModel):
 
 
 class RegisterRequest(BaseModel):
-    device_name: str = "appareil-anonyme"
+    device_name: str = Field(default="appareil-anonyme", max_length=64)
 
 
 class RegisterResponse(BaseModel):
@@ -43,13 +43,13 @@ class RegisterResponse(BaseModel):
 
 
 class ResultSubmission(BaseModel):
-    task_id: str
-    trace: str
-    attempt: int = 1
+    task_id: str = Field(max_length=128)
+    trace: str = Field(max_length=32_000)
+    attempt: int = Field(default=1, ge=1, le=32)
 
 
 class ResultsPayload(BaseModel):
-    results: list[ResultSubmission]
+    results: list[ResultSubmission] = Field(max_length=64)
 
 
 class Verdict(BaseModel):

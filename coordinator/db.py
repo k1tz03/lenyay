@@ -128,6 +128,20 @@ def add_credits(device_id: str, amount: int) -> int:
     return row["credits"] if row else 0
 
 
+def accepted_today(device_id: str) -> int:
+    """Rollouts acceptés aujourd'hui (UTC) — sert de compteur au plafond
+    quotidien de crédits. Approximation honnête : le worker ne re-soumet
+    jamais une tâche déjà acceptée, donc acceptés ≈ crédités."""
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    with _connect() as conn:
+        row = conn.execute(
+            "SELECT COUNT(*) AS n FROM rollouts WHERE device_id = ?"
+            " AND accepted = 1 AND created_at LIKE ?",
+            (device_id, f"{today}%"),
+        ).fetchone()
+    return row["n"]
+
+
 def hard_task_ids() -> set[str]:
     """Tâches déjà tentées mais jamais résolues par personne — cibles du mode
     chasse : c'est là que naissent les traces « durement gagnées »."""

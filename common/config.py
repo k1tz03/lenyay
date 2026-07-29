@@ -48,6 +48,16 @@ MAX_TASKS = int(_env("MAX_TASKS", "0"))
 # Mode chasse : le coordinateur sert en priorité les tâches ratées par tous.
 HUNT_MODE = _env("HUNT", "0") == "1"
 
+# --- Protections (ouverture publique) --------------------------------------
+# Requêtes authentifiées par appareil et par minute.
+RATE_LIMIT = int(_env("RATE_LIMIT", "120"))
+# Enregistrements d'appareils par IP et par heure.
+REGISTER_LIMIT = int(_env("REGISTER_LIMIT", "20"))
+# Crédits maximum par appareil et par jour UTC (0 = sans plafond).
+DAILY_CREDIT_CAP = int(_env("DAILY_CREDIT_CAP", "2000"))
+# Une trace correcte mais plus courte que ça est jugée creuse (pas de crédit).
+MIN_TRACE_CHARS = int(_env("MIN_TRACE_CHARS", "40"))
+
 # --- Inférence -------------------------------------------------------------
 TEMPERATURE = float(_env("TEMPERATURE", "0.8"))
 MAX_TOKENS = int(_env("MAX_TOKENS", "640"))

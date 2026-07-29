@@ -42,10 +42,11 @@ class TestStatsEnrichies:
         headers = {"X-API-Key": creds["api_key"]}
         work = client.get("/work", params={"n": 1}, headers=headers).json()
         task_id = work["tasks"][0]["task_id"]
+        trace = ("Raisonnement détaillé, étape par étape, pour vérifier le calcul. "
+                 f"#### {answers[task_id]}")
         client.post(
             "/results",
-            json={"results": [{"task_id": task_id,
-                               "trace": f"#### {answers[task_id]}", "attempt": 1}]},
+            json={"results": [{"task_id": task_id, "trace": trace, "attempt": 1}]},
             headers=headers,
         )
 
