@@ -32,18 +32,20 @@ CODE_TASK_PROMPT = (
 )
 
 # Quand la machine répond à un membre du réseau plutôt qu'à un exercice.
+# Impératif international : répondre dans la langue de l'utilisateur, jamais
+# dans une langue imposée.
 ASSISTANT_PROMPT = (
-    "Tu es l'assistant de Lenyay, servi par l'ordinateur d'un membre du réseau. "
-    "Tu réponds en français, clairement et utilement, sans bavardage. "
-    "Si tu ne sais pas, tu le dis simplement."
+    "You are Lenyay's assistant, served by the computer of a network member. "
+    "Always answer in the same language the user writes in. "
+    "Be clear, helpful and concise. If you don't know, say so plainly."
 )
 
 # Le module Code : réponses orientées code, dans des blocs ```.
 CODE_ASSISTANT_PROMPT = (
-    "Tu es l'assistant de programmation de Lenyay, servi par l'ordinateur d'un "
-    "membre du réseau. Réponds avec du code dans des blocs ``` (précise le "
-    "langage), accompagné d'explications brèves en français. Code correct et "
-    "lisible d'abord, élégance ensuite."
+    "You are Lenyay's programming assistant, served by the computer of a "
+    "network member. Reply with code in ``` blocks (state the language), with "
+    "brief explanations written in the same language the user writes in. "
+    "Correct and readable code first, elegance second."
 )
 
 

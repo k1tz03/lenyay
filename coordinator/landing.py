@@ -114,6 +114,9 @@ body.desktop .topnav, body.desktop .weblink{display:none}
   cursor:pointer}
 .signin:hover{border-color:var(--verd)}
 .signin[hidden]{display:none}
+#lang-pick{font:inherit; font-size:.8rem; border:1px solid var(--line); border-radius:8px;
+  background:var(--panel); color:var(--soft); padding:.3rem .35rem; cursor:pointer}
+#lang-pick:hover{border-color:var(--verd); color:var(--ink)}
 
 .stream{flex:1; overflow-y:auto; padding:1.4rem 1.1rem 1rem; min-height:0}
 .inner{max-width:760px; margin:0 auto; display:flex; flex-direction:column; gap:1.1rem}
@@ -278,20 +281,21 @@ details.faq p{margin:.45rem 0 .2rem; font-size:.9rem; color:var(--soft)}
     <header>
       <span class="logo"><span class="seal">L</span> Lenyay</span>
     </header>
-    <button class="newconv" id="new-conv">＋ Nouvelle conversation</button>
+    <button class="newconv" id="new-conv" data-i18n="side.new">＋ Nouvelle conversation</button>
     <div class="threads" id="threads"></div>
     <footer>
       <button class="wallet" id="wallet">
-        <span id="wallet-n">—</span> crédits <span class="g" id="wallet-who">compte</span>
+        <span id="wallet-n">—</span> <span data-i18n="side.credits">crédits</span>
+        <span class="g" id="wallet-who" data-i18n="side.account">compte</span>
       </button>
       <div id="contrib" hidden>
-        <button class="ctoggle" id="ctoggle"><i></i><span>Contribuer : arrêté</span></button>
-        <p class="cstatus" id="cstatus">Ta machine peut gagner des crédits en
-          travaillant pour le réseau.</p>
+        <button class="ctoggle" id="ctoggle"><i></i><span data-i18n="contrib.off">Contribuer : arrêté</span></button>
+        <p class="cstatus" id="cstatus" data-i18n="contrib.idle">Ta machine peut gagner
+          des crédits en travaillant pour le réseau.</p>
       </div>
-      <button class="sidelink aslink" id="faq-link">FAQ &amp; aide</button>
-      <a class="sidelink weblink" href="/decouvrir">Qu'est-ce que Lenyay ?</a>
-      <a class="sidelink weblink" href="/dashboard">Le réseau en direct</a>
+      <button class="sidelink aslink" id="faq-link" data-i18n="side.faq">FAQ &amp; aide</button>
+      <a class="sidelink weblink" href="/decouvrir" data-i18n="side.what">Qu'est-ce que Lenyay ?</a>
+      <a class="sidelink weblink" href="/dashboard" data-i18n="side.livenet">Le réseau en direct</a>
     </footer>
   </aside>
 
@@ -300,13 +304,18 @@ details.faq p{margin:.45rem 0 .2rem; font-size:.9rem; color:var(--soft)}
       <button class="burger" id="burger" aria-label="Fils">☰</button>
       <div class="picker" id="picker"></div>
       <nav class="topnav">
-        <a href="/decouvrir">Découvrir</a>
-        <a href="/decouvrir#nuit" class="opt">Comment ça marche</a>
-        <a href="/decouvrir#participer" class="opt">Participer</a>
-        <a href="/dashboard" class="opt">Le réseau</a>
+        <a href="/decouvrir" data-i18n="nav.discover">Découvrir</a>
+        <a href="/decouvrir#nuit" class="opt" data-i18n="nav.how">Comment ça marche</a>
+        <a href="/decouvrir#participer" class="opt" data-i18n="nav.join">Participer</a>
+        <a href="/dashboard" class="opt" data-i18n="nav.network">Le réseau</a>
       </nav>
-      <span class="netstate"><i></i><span id="net">réseau</span></span>
-      <button class="signin" id="signin">Se connecter</button>
+      <span class="netstate"><i></i><span id="net" data-i18n="net.live">réseau</span></span>
+      <select id="lang-pick" aria-label="Langue">
+        <option value="fr">FR</option><option value="en">EN</option>
+        <option value="es">ES</option><option value="de">DE</option>
+        <option value="pt">PT</option><option value="it">IT</option>
+      </select>
+      <button class="signin" id="signin" data-i18n="nav.signin">Se connecter</button>
     </div>
 
     <div class="stream" id="stream">
@@ -316,11 +325,12 @@ details.faq p{margin:.45rem 0 .2rem; font-size:.9rem; color:var(--soft)}
     <div class="composer">
       <div class="inner">
         <div class="box">
-          <textarea id="q" rows="1" placeholder="Écris ton message…"></textarea>
+          <textarea id="q" rows="1" placeholder="Écris ton message…"
+            data-i18n-ph="composer.ph"></textarea>
           <button id="send" aria-label="Envoyer">↑</button>
         </div>
-        <p class="legalese">Ta question est lue par la machine d'un autre membre —
-          n'y mets rien de confidentiel.</p>
+        <p class="legalese" data-i18n="composer.legal">Ta question est lue par la machine
+          d'un autre membre — n'y mets rien de confidentiel.</p>
       </div>
     </div>
   </main>
@@ -330,7 +340,28 @@ details.faq p{margin:.45rem 0 .2rem; font-size:.9rem; color:var(--soft)}
 
 <script>
 const $ = id => document.getElementById(id);
-const fmt = n => Number(n).toLocaleString("fr-FR");
+
+/* ---------- Langues ---------- */
+/* Six langues embarquées ; le HTML reste en français par défaut et
+   applyI18n() applique la langue choisie (mémorisée, sinon celle du
+   navigateur, sinon l'anglais). */
+const I18N = __I18N__;
+const LOCALES = {fr:"fr-FR", en:"en-US", es:"es-ES", de:"de-DE", pt:"pt-PT", it:"it-IT"};
+let LANG = localStorage.getItem("lenyay.lang")
+  || ((navigator.language || "en").slice(0, 2));
+if(!I18N[LANG]) LANG = "en";
+const t = k => (I18N[LANG] && I18N[LANG][k]) || I18N.fr[k] || k;
+const tf = (k, vars) => Object.entries(vars).reduce(
+  (s, [name, v]) => s.replaceAll("{" + name + "}", v), t(k));
+function applyI18n(){
+  document.documentElement.lang = LANG;
+  document.querySelectorAll("[data-i18n]").forEach(el =>
+    el.textContent = t(el.dataset.i18n));
+  document.querySelectorAll("[data-i18n-ph]").forEach(el =>
+    el.placeholder = t(el.dataset.i18nPh));
+  const pick = $("lang-pick"); if(pick) pick.value = LANG;
+}
+const fmt = n => Number(n).toLocaleString(LOCALES[LANG] || "fr-FR");
 let account = null, tiers = [], tier = "rapide", conv = null, polling = null;
 
 const esc = s => { const d = document.createElement("div"); d.textContent = s ?? ""; return d.innerHTML; };
@@ -345,13 +376,13 @@ async function loadTiers(){
   const d = await (await fetch("/tiers")).json();
   tiers = d.tiers;
   // On ne propose jamais un modèle qu'aucune machine ne peut servir.
-  const first = tiers.find(t => t.online > 0);
-  tier = (tiers.find(t => t.id === d.default && t.online > 0) || first || {id:d.default}).id;
-  $("picker").innerHTML = tiers.map(t => {
-    const off = t.online === 0;
-    return `<button data-t="${t.id}" aria-pressed="${t.id === tier}" ${off ? "disabled" : ""}
-       title="${esc(t.model)} — ${off ? "aucune machine en ligne pour ce modèle" : esc(t.about)}">
-       ${esc(t.label)} <span class="price">${esc(t.model)} · ${t.cost} cr.</span></button>`;
+  const first = tiers.find(x => x.online > 0);
+  tier = (tiers.find(x => x.id === d.default && x.online > 0) || first || {id:d.default}).id;
+  $("picker").innerHTML = tiers.map(x => {
+    const off = x.online === 0;
+    return `<button data-t="${x.id}" aria-pressed="${x.id === tier}" ${off ? "disabled" : ""}
+       title="${esc(x.model)} — ${off ? esc(t("tier.offline")) : esc(x.about)}">
+       ${esc(x.label)} <span class="price">${esc(x.model)} · ${x.cost} cr.</span></button>`;
   }).join("");
   $("picker").querySelectorAll("button:not([disabled])").forEach(b => b.onclick = () => {
     tier = b.dataset.t;
@@ -381,24 +412,21 @@ function authForm(mode){
   const login = mode === "login";
   $("dlg-body").innerHTML = `
     <div class="authtabs">
-      <button data-m="login" aria-selected="${login}">Se connecter</button>
-      <button data-m="register" aria-selected="${!login}">Créer un compte</button>
+      <button data-m="login" aria-selected="${login}">${esc(t("auth.login"))}</button>
+      <button data-m="register" aria-selected="${!login}">${esc(t("auth.register"))}</button>
     </div>
-    ${login ? "" : `<label class="field">Pseudo
-      <input id="a-handle" maxlength="40" placeholder="visible sur le tableau de bord"></label>`}
-    <label class="field">E-mail
+    ${login ? "" : `<label class="field">${esc(t("auth.handle"))}
+      <input id="a-handle" maxlength="40" placeholder="${esc(t("auth.handle.ph"))}"></label>`}
+    <label class="field">${esc(t("auth.email"))}
       <input id="a-email" type="email" autocomplete="email" placeholder="toi@exemple.fr"></label>
-    <label class="field">Mot de passe
+    <label class="field">${esc(t("auth.pass"))}
       <input id="a-pass" type="password" autocomplete="${login ? "current-password" : "new-password"}"
-        placeholder="${login ? "" : "8 caractères minimum"}"></label>
+        placeholder="${login ? "" : esc(t("auth.pass.ph"))}"></label>
     <p class="autherr" id="a-err"></p>
     ${login ? "" : `<label class="consent"><input type="checkbox" id="a-learn">
-      <span>Aider à améliorer Lenyay : mes conversations que je note 👍 pourront
-      servir à entraîner le modèle, après retrait de mes données personnelles.
-      Révocable à tout moment.</span></label>`}
-    <button class="go" id="a-go">${login ? "Se connecter" : "Créer mon compte — 20 crédits offerts"}</button>
-    ${login ? "" : `<p class="authnote">Pas de carte bancaire, pas de newsletter. L'e-mail ne
-      sert qu'à retrouver ton compte.</p>`}`;
+      <span>${esc(t("auth.consent"))}</span></label>`}
+    <button class="go" id="a-go">${esc(t(login ? "auth.go.login" : "auth.go.register"))}</button>
+    ${login ? "" : `<p class="authnote">${esc(t("auth.note"))}</p>`}`;
   $("dlg-body").querySelectorAll(".authtabs button").forEach(b =>
     b.onclick = () => authForm(b.dataset.m));
   $("a-go").onclick = async () => {
@@ -411,7 +439,7 @@ function authForm(mode){
     if(!r.ok){
       const d = await r.json().catch(() => ({}));
       $("a-err").textContent = typeof d.detail === "string" ? d.detail
-        : (login ? "Connexion impossible." : "Vérifie l'e-mail et le mot de passe (8 caractères min).");
+        : t(login ? "auth.err.login" : "auth.err.register");
       return;
     }
     await loadAccount();
@@ -435,32 +463,31 @@ async function logout(){
   await fetch("/auth/logout", {method:"POST"});
   account = null; conv = null;
   $("signin").hidden = false;
-  $("wallet-n").textContent = "—"; $("wallet-who").textContent = "compte";
+  $("wallet-n").textContent = "—"; $("wallet-who").textContent = t("side.account");
   $("threads").innerHTML = ""; $("dlg").close(); blank();
 }
 $("signin").onclick = () => { authForm("login"); $("dlg").showModal(); };
 /* ---------- Le compte : solde, gains, dépenses, machines ---------- */
 const KINDS = {
-  daily:    ["🌱", "Recharge quotidienne"],
-  welcome:  ["🎁", "Bienvenue"],
-  solved:   ["🧮", "Calculs"],
-  served:   ["💬", "Réponse servie"],
-  question: ["✳️", "Question"],
-  subscription: ["💳", "Abonnement"],
-  adjust:   ["•", "Ajustement"],
+  daily: "🌱", welcome: "🎁", solved: "🧮", served: "💬",
+  question: "✳️", subscription: "💳", adjust: "•",
 };
 const when = iso => {
   const d = new Date(iso);
-  return isNaN(d) ? "" : d.toLocaleDateString("fr-FR", {day:"2-digit", month:"short"}) +
-    " " + d.toLocaleTimeString("fr-FR", {hour:"2-digit", minute:"2-digit"});
+  const loc = LOCALES[LANG] || "fr-FR";
+  return isNaN(d) ? "" : d.toLocaleDateString(loc, {day:"2-digit", month:"short"}) +
+    " " + d.toLocaleTimeString(loc, {hour:"2-digit", minute:"2-digit"});
 };
 function lines(entries){
-  if(!entries.length) return `<p class="empty">Rien pour l'instant.</p>`;
+  if(!entries.length) return `<p class="empty">${esc(t("acct.empty"))}</p>`;
   return `<ul class="ledger">` + entries.map(e => {
-    const [icon, fallback] = KINDS[e.kind] || KINDS.adjust;
+    const icon = KINDS[e.kind] || KINDS.adjust;
+    const fallback = t("kind." + (KINDS[e.kind] ? e.kind : "adjust"));
+    // le libellé serveur est en français ; hors français, la clé locale prime
+    const label = LANG === "fr" ? (e.label || fallback) : fallback;
     return `<li>
       <span class="ic">${icon}</span>
-      <span class="what"><b>${esc(e.label || fallback)}</b>
+      <span class="what"><b>${esc(label)}</b>
         ${e.device_name ? `<em>${esc(e.device_name)}</em>` : ""}
         <time>${when(e.created_at)}</time></span>
       <span class="amt ${e.amount >= 0 ? "up" : "down"}">${e.amount >= 0 ? "+" : ""}${fmt(e.amount)}</span>
@@ -479,56 +506,50 @@ async function openAccount(tab = "solde"){
   const depenses = led.entries.filter(e => e.amount < 0);
   const devices = me.devices.length
     ? `<ul class="devs">${me.devices.map(d =>
-        `<li><b>${esc(d.device_name)}</b><span>${fmt(d.credits||0)} crédits produits</span></li>`).join("")}</ul>`
-    : `<p class="empty">Aucune machine rattachée. Installe Lenyay et rattache-la :
-       tes nuits deviennent des crédits.</p>`;
+        `<li><b>${esc(d.device_name)}</b><span>${fmt(d.credits||0)} ${esc(t("acct.produced"))}</span></li>`).join("")}</ul>`
+    : `<p class="empty">${esc(t("acct.nodevice"))}</p>`;
 
   $("dlg-body").innerHTML = `
     <div class="acct-head">
       <div>
         <h3>${esc(me.handle)}</h3>
-        <p class="sub">${esc(me.email || "Compte Lenyay")}</p>
+        <p class="sub">${esc(me.email || "Lenyay")}</p>
       </div>
-      <div class="bal-big"><b>${fmt(me.credits)}</b><span>crédits</span></div>
+      <div class="bal-big"><b>${fmt(me.credits)}</b><span>${esc(t("side.credits"))}</span></div>
     </div>
     <div class="totals">
-      <div><b class="up">+${fmt(led.summary.earned)}</b><span>gagnés</span></div>
-      <div><b class="down">−${fmt(led.summary.spent)}</b><span>dépensés</span></div>
-      <div><b>${me.devices.length}</b><span>machine${me.devices.length > 1 ? "s" : ""}</span></div>
+      <div><b class="up">+${fmt(led.summary.earned)}</b><span>${esc(t("acct.earned"))}</span></div>
+      <div><b class="down">−${fmt(led.summary.spent)}</b><span>${esc(t("acct.spent"))}</span></div>
+      <div><b>${me.devices.length}</b><span>${esc(t("acct.machines"))}</span></div>
     </div>
     <div class="tabs" id="acct-tabs">
-      <button data-t="solde">Machines</button>
-      <button data-t="gains">Crédits gagnés</button>
-      <button data-t="depenses">Facturation</button>
-      <button data-t="cle">Mes machines & clé</button>
+      <button data-t="solde">${esc(t("acct.tab.devices"))}</button>
+      <button data-t="gains">${esc(t("acct.tab.earned"))}</button>
+      <button data-t="depenses">${esc(t("acct.tab.billing"))}</button>
+      <button data-t="cle">${esc(t("acct.tab.key"))}</button>
     </div>
     <div class="tabbody" id="acct-body"></div>
-    <button class="go" onclick="document.getElementById('dlg').close()">Fermer</button>
-    <button class="leave" id="do-logout">Se déconnecter</button>`;
+    <button class="go" onclick="document.getElementById('dlg').close()">${esc(t("acct.close"))}</button>
+    <button class="leave" id="do-logout">${esc(t("acct.logout"))}</button>`;
 
   const views = {
     solde: devices,
     gains: lines(gains),
     depenses: depenses.length
-      ? lines(depenses) + `<p class="empty">Aucun paiement : Lenyay ne facture pas
-         d'argent. L'abonnement arrivera pour ceux qui préfèrent ne pas contribuer.</p>`
-      : `<p class="empty">Aucune dépense pour l'instant.</p>`,
+      ? lines(depenses) + `<p class="empty">${esc(t("acct.nobilling"))}</p>`
+      : `<p class="empty">${esc(t("acct.nospend"))}</p>`,
     cle: `
        <label class="consent optrow">
          <input type="checkbox" id="opt-learn" ${me.learn_opt_in ? "checked" : ""}>
-         <span><b>Aider à améliorer Lenyay.</b> Mes conversations notées 👍 peuvent
-         servir à entraîner le modèle, données personnelles retirées. Révocable ici
-         à tout moment.</span>
+         <span>${esc(t("acct.optlearn"))}</span>
        </label>
-       <p class="empty">Cette clé rattache une machine à ton compte : lance le worker
-       avec <code>LENYAY_ACCOUNT_KEY</code> et ses gains alimenteront ta bourse. Ce n'est
-       pas un mot de passe — ton identité, c'est ton e-mail.</p>
+       <p class="empty">${esc(t("acct.keyinfo"))}</p>
        <div class="key">${account.key}</div>`,
   };
-  const show = t => {
-    $("acct-body").innerHTML = views[t];
+  const show = which => {
+    $("acct-body").innerHTML = views[which];
     $("acct-tabs").querySelectorAll("button").forEach(b =>
-      b.setAttribute("aria-selected", b.dataset.t === t));
+      b.setAttribute("aria-selected", b.dataset.t === which));
   };
   $("acct-tabs").querySelectorAll("button").forEach(b => b.onclick = () => show(b.dataset.t));
   $("do-logout").onclick = logout;
@@ -551,7 +572,7 @@ async function loadThreads(){
   $("threads").innerHTML = d.conversations.map(c =>
     `<div class="thread ${c.id === conv ? "on" : ""}" data-id="${c.id}">
        <span>${esc(c.title)}</span><button class="x" data-del="${c.id}">×</button></div>`).join("")
-    || `<p style="padding:.6rem;color:var(--soft);font-size:.88rem">Aucune conversation.</p>`;
+    || `<p style="padding:.6rem;color:var(--soft);font-size:.88rem">${esc(t("side.empty"))}</p>`;
   $("threads").querySelectorAll(".thread").forEach(el => el.onclick = e => {
     if(e.target.dataset.del) return;
     openThread(el.dataset.id);
@@ -570,13 +591,13 @@ async function loadThreads(){
 function blank(){
   $("turns").innerHTML = `
   <div class="welcome">
-    <h1>Pose ta question au réseau.</h1>
-    <p>Elle sera traitée par l'ordinateur d'un membre — pas par un datacenter.
-      <a class="learn" href="/decouvrir">Comprendre comment ça marche&nbsp;→</a></p>
+    <h1>${esc(t("hero.title"))}</h1>
+    <p>${esc(t("hero.sub"))}
+      <a class="learn" href="/decouvrir">${esc(t("hero.learn"))}</a></p>
     <div class="samples">
-      <button>Explique-moi la photosynthèse simplement</button>
-      <button>Écris un mot d'excuse à mon voisin</button>
-      <button>Combien font 17 % de 340 ?</button>
+      <button>${esc(t("hero.s1"))}</button>
+      <button>${esc(t("hero.s2"))}</button>
+      <button>${esc(t("hero.s3"))}</button>
     </div>
   </div>`;
   document.querySelectorAll(".samples button").forEach(b =>
@@ -609,10 +630,11 @@ function renderRich(container, text){
       const box = document.createElement("div"); box.className = "codebox";
       const head = document.createElement("div"); head.className = "codehead";
       const lab = document.createElement("span"); lab.textContent = lang || "code";
-      const cp = document.createElement("button"); cp.type = "button"; cp.textContent = "Copier";
+      const cp = document.createElement("button"); cp.type = "button";
+      cp.textContent = t("copy");
       cp.onclick = async () => {
-        try{ await navigator.clipboard.writeText(code); cp.textContent = "Copié";
-          setTimeout(() => cp.textContent = "Copier", 1500); }catch(e){}
+        try{ await navigator.clipboard.writeText(code); cp.textContent = t("copied");
+          setTimeout(() => cp.textContent = t("copy"), 1500); }catch(e){}
       };
       head.append(lab, cp);
       const pre = document.createElement("pre"); pre.textContent = code.replace(/\n$/, "");
@@ -633,7 +655,7 @@ function feedbackBar(messageId, current){
       if(r.ok){
         bar.querySelectorAll("button").forEach(o =>
           o.setAttribute("aria-pressed", o.dataset.r === rating));
-        hint.textContent = rating === "up" ? "Merci — ça aide à améliorer Lenyay." : "Noté, merci.";
+        hint.textContent = rating === "up" ? t("fb.thanks") : t("fb.noted");
       }
     };
     return b;
@@ -645,7 +667,7 @@ function feedbackBar(messageId, current){
 function addTurn(kind, text, meta){
   const el = document.createElement("div");
   el.className = "turn " + kind;
-  el.innerHTML = `<div class="who">${kind === "me" ? "toi" : "IA"}</div>
+  el.innerHTML = `<div class="who">${kind === "me" ? esc(t("turn.you")) : "IA"}</div>
     <div class="body"><div class="txt"></div></div>`;
   const txt = el.querySelector(".txt");
   if(kind === "ai" && String(text).includes("```")){ renderRich(txt, text); }
@@ -653,7 +675,7 @@ function addTurn(kind, text, meta){
   if(meta){
     const m = document.createElement("p");
     m.className = "meta";
-    m.innerHTML = `Répondu par <b>${esc(meta.device_name || "une machine")}</b>` +
+    m.innerHTML = `${esc(t("turn.by"))} <b>${esc(meta.device_name || t("turn.machine"))}</b>` +
       (meta.tier ? ` <span class="chip">${esc(meta.tier)}</span>` : "");
     el.querySelector(".body").append(m);
     // On ne peut noter que ses propres messages IA identifiés.
@@ -664,10 +686,9 @@ function addTurn(kind, text, meta){
         document.querySelectorAll(".regen").forEach(b => b.remove());
         const rg = document.createElement("button");
         rg.type = "button"; rg.className = "regen";
-        const t = tiers.find(x => x.id === tier);
-        rg.textContent = "↻ Régénérer";
-        rg.title = "Reposer la même question à une autre machine" +
-          (t ? ` (${t.cost} cr.)` : "");
+        const current = tiers.find(x => x.id === tier);
+        rg.textContent = t("turn.regen");
+        rg.title = tf("turn.regen.tip", {c: current ? current.cost : "?"});
         rg.onclick = regenerate;
         bar.append(rg);
       }
@@ -698,7 +719,7 @@ async function send(text){
     outOfCredits(d.detail);
     $("send").disabled = false; return;
   }
-  if(!r.ok){ addTurn("ai", "Le réseau n'a pas pu prendre la question. Réessaie."); $("send").disabled = false; return; }
+  if(!r.ok){ addTurn("ai", t("turn.fail")); $("send").disabled = false; return; }
   const asked = await r.json();
   account.credits = asked.credits_left; paintWallet(); loadThreads();
 
@@ -709,7 +730,7 @@ async function send(text){
 function pollAnswer(questionId){
   const pending = addTurn("ai", "");
   pending.querySelector(".txt").innerHTML =
-    `<span class="dots">en attente d'une machine <span></span><span></span><span></span></span>`;
+    `<span class="dots">${esc(t("turn.waiting"))} <span></span><span></span><span></span></span>`;
   let tries = 0;
   clearInterval(polling);
   polling = setInterval(async () => {
@@ -718,7 +739,7 @@ function pollAnswer(questionId){
       const s = await (await fetch("/ask/" + questionId)).json();
       if(s.status === "serving"){
         pending.querySelector(".txt").innerHTML =
-          `<span class="dots">${esc(s.device_name || "une machine")} rédige <span></span><span></span><span></span></span>`;
+          `<span class="dots">${esc(tf("turn.writing", {d: s.device_name || t("turn.machine")}))} <span></span><span></span><span></span></span>`;
       }
       if(s.status === "done"){
         clearInterval(polling); pending.remove();
@@ -728,7 +749,7 @@ function pollAnswer(questionId){
       }
       if(tries > 120){
         clearInterval(polling); pending.querySelector(".txt").textContent =
-          "Aucune machine disponible pour l'instant. Ta question reste en file.";
+          t("turn.none");
         $("send").disabled = false;
       }
     }catch(e){}
@@ -751,18 +772,16 @@ async function regenerate(){
   pollAnswer(asked.question_id);
 }
 function outOfCredits(detail){
-  $("dlg-body").innerHTML = `<h3>Plus de crédits pour aujourd'hui</h3>
-    <p>${esc(detail)}</p>
+  // le detail serveur est en français : hors français, le résumé local suffit
+  $("dlg-body").innerHTML = `<h3>${esc(t("wall.title"))}</h3>
+    ${LANG === "fr" && detail ? `<p>${esc(detail)}</p>` : ""}
     <ul>
-      <li><b>Demain</b> — ton solde remonte automatiquement : de quoi quelques
-        questions simples chaque jour.</li>
-      <li><b>Contribuer</b> — laisse Lenyay tourner : chaque calcul vérifié te
-        recrédite, sans limite.</li>
-      <li><b>S'abonner</b> — bientôt, un petit abonnement pour utiliser sans
-        contribuer.</li>
+      <li>${esc(t("wall.tomorrow"))}</li>
+      <li>${esc(t("wall.contribute"))}</li>
+      <li>${esc(t("wall.subscribe"))}</li>
     </ul>
     <button class="go" onclick="document.getElementById('dlg').close();location.href='/decouvrir#participer'">
-      Voir comment contribuer</button>`;
+      ${esc(t("wall.cta"))}</button>`;
   $("dlg").showModal();
 }
 $("send").onclick = () => send();
@@ -783,64 +802,30 @@ $("burger").onclick = () => $("side").classList.toggle("open");
 async function net(){
   try{
     const s = await (await fetch("/stats", {cache:"no-store"})).json();
-    $("net").textContent = s.devices_seen + " machine" + (s.devices_seen > 1 ? "s" : "") +
-      " · " + fmt(s.accepted_rollouts) + " calculs";
+    $("net").textContent = tf("net.stats",
+      {d: fmt(s.devices_seen), c: fmt(s.accepted_rollouts)});
   }catch(e){}
 }
-const CMD = {win:"irm https://lenyay.org/install.ps1 | iex",
-             nix:"curl -fsSL https://lenyay.org/install.sh | bash"};
-document.querySelectorAll(".os button").forEach(b => b.onclick = () => {
-  document.querySelectorAll(".os button").forEach(o => o.setAttribute("aria-selected","false"));
-  b.setAttribute("aria-selected","true"); $("cmd-text").textContent = CMD[b.dataset.os];
-});
-$("copy").onclick = async e => {
-  try{ await navigator.clipboard.writeText($("cmd-text").textContent);
-    e.target.textContent = "Copié"; setTimeout(() => e.target.textContent = "Copier", 1600);
-  }catch(err){ e.target.textContent = "Ctrl+C"; }
-};
-
 // L'accueil s'affiche AVANT tout appel réseau : même hors ligne, le visiteur
 // doit comprendre où il est tombé et comment le réseau fonctionne.
+applyI18n();
 blank();
 /* ---------- FAQ (web et application) ---------- */
-const FAQ = [
-  ["C'est quoi, Lenyay ?",
-   "Une IA sans datacenter : chaque réponse est produite par l'ordinateur d'un " +
-   "membre du réseau. Le jour tu poses tes questions, la nuit ta machine peut " +
-   "travailler pour les autres et te faire gagner des crédits."],
-  ["Combien ça coûte ?",
-   "Rien. Tu reçois 20 crédits à l'inscription, et chaque jour ton solde " +
-   "remonte à 5 crédits minimum — de quoi poser quelques questions simples. " +
-   "Pour un usage intensif : laisse ta machine contribuer, chaque calcul " +
-   "vérifié te recrédite sans limite."],
-  ["C'est quoi, les crédits ?",
-   "Le compteur du troc : une question en coûte quelques-uns (1 à 20 selon le " +
-   "modèle), un travail rendu par ta machine en rapporte davantage. Ils ne " +
-   "s'achètent pas et ne valent pas d'argent."],
-  ["Comment contribuer ?",
-   "Active « Contribuer » dans l'application (ou lance le programme Lenyay " +
-   "sur ton ordinateur). Ta machine résout des problèmes vérifiables — maths, " +
-   "code — et sert les questions des autres membres. Tu arrêtes quand tu veux."],
-  ["Mes conversations sont-elles privées ?",
-   "Ta question est lue par la machine du membre qui y répond — n'y mets rien " +
-   "de confidentiel. Rien ne sert à entraîner le modèle sans ton accord " +
-   "explicite ET un 👍 de ta part, après retrait des données personnelles " +
-   "(e-mails, numéros)."],
-  ["Pourquoi la réponse met parfois du temps ?",
-   "Il faut qu'une machine du réseau soit disponible pour ton modèle. Les " +
-   "modèles sans machine en ligne sont grisés. Tu peux aussi régénérer une " +
-   "réponse qui ne convient pas — une autre machine s'en chargera."],
-  ["Comment supprimer mon compte ou mes données ?",
-   "Supprime tes conversations une à une (elles disparaissent immédiatement), " +
-   "et écris-nous pour l'effacement complet du compte — c'est un droit, pas " +
-   "une faveur."],
-];
 $("faq-link").onclick = () => {
-  $("dlg-body").innerHTML = `<h3>FAQ &amp; aide</h3>` +
-    FAQ.map(([q, a]) => `<details class="faq"><summary>${esc(q)}</summary>
-      <p>${esc(a)}</p></details>`).join("") +
-    `<button class="go" onclick="document.getElementById('dlg').close()">Fermer</button>`;
+  let html = `<h3>${esc(t("faq.title"))}</h3>`;
+  for(let i = 1; i <= 7; i++){
+    html += `<details class="faq"><summary>${esc(t("faq.q" + i))}</summary>
+      <p>${esc(t("faq.a" + i))}</p></details>`;
+  }
+  html += `<button class="go" onclick="document.getElementById('dlg').close()">${esc(t("acct.close"))}</button>`;
+  $("dlg-body").innerHTML = html;
   $("dlg").showModal();
+};
+
+/* ---------- Choix de la langue ---------- */
+$("lang-pick").onchange = e => {
+  localStorage.setItem("lenyay.lang", e.target.value);
+  location.reload();   // simple et sûr : tout se réaffiche dans la langue choisie
 };
 
 /* ---------- Mode application (bureau) ---------- */
@@ -852,10 +837,10 @@ async function paintContrib(){
     const s = await window.pywebview.api.status();
     $("ctoggle").setAttribute("aria-pressed", s.running);
     $("ctoggle").querySelector("span").textContent =
-      "Contribuer : " + (s.running ? "actif" : "arrêté");
+      s.running ? t("contrib.on") : t("contrib.off");
     $("cstatus").textContent = s.running
-      ? (s.detail || "Ta machine travaille pour le réseau.")
-      : "Ta machine peut gagner des crédits en travaillant pour le réseau.";
+      ? (s.detail || t("contrib.busy"))
+      : t("contrib.idle");
   }catch(e){}
 }
 function setupDesktop(){
@@ -881,3 +866,12 @@ loadTiers(); loadAccount(); net(); setInterval(net, 15000);
 </script>
 </body>
 </html>"""
+
+# Injection du dictionnaire : six langues embarquées dans la page, aucune
+# requête supplémentaire, et le test de complétude interdit les trous.
+import json as _json  # noqa: E402
+
+from coordinator.i18n import bundle as _i18n_bundle  # noqa: E402
+
+LANDING_HTML = LANDING_HTML.replace(
+    "__I18N__", _json.dumps(_i18n_bundle(), ensure_ascii=False))
