@@ -815,6 +815,12 @@ async function net(){
       {d: fmt(s.devices_seen), c: fmt(s.accepted_rollouts)});
   }catch(e){}
 }
+// L'application Android native signe son User-Agent : même épure que le
+// bureau (chat, compte, FAQ — pas la navigation du site).
+if(navigator.userAgent.includes("LenyayApp")){
+  document.body.classList.add("desktop");
+}
+
 // L'application est installable (Android, et iOS via Safari) : le service
 // worker à la racine rend le manifeste actif. Jamais bloquant si absent.
 if("serviceWorker" in navigator){

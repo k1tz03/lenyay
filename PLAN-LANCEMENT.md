@@ -7,10 +7,14 @@ mention claire « les abonnements viendront dans un second temps », puis
 **Périmètre du vendredi :**
 - ✅ le site (chat 6 langues, comptes, /decouvrir, admin) sur le domaine, en HTTPS ;
 - ✅ la version PC : `Lenyay-Setup.exe` téléchargeable depuis le site ;
-- ✅ Android : **installable depuis le site** (PWA « Ajouter à l'écran d'accueil ») —
-  chat, compte, FAQ. *La contribution Android (app native qui calcule la nuit)
-  est un chantier de 4–6 semaines : développée PENDANT les vacances, pas bâclée
-  avant.* C'est écrit tel quel sur le site : pas de promesse fantôme.
+- ✅ Android : **application native (APK)** téléchargeable depuis le site —
+  chat, compte, FAQ, 6 langues (la PWA reste en secours pour iOS).
+  **La contribution mobile (calcul nocturne) passe par une porte** : llama.cpp
+  compilé pour Android et testé sur LE téléphone de Julien au plus tard
+  mercredi 5/8. Ça tourne → elle est dans l'APK du lancement. Ça ne tourne
+  pas → l'APK sort sans elle et la mise à jour arrive pendant les vacances.
+  Pas de Play Store vendredi (validation Google = des jours, hors de notre
+  contrôle) : APK distribué par le site, soumission Store ensuite.
 
 **Ce qui dépend de Julien (1 h au total) :** le domaine + le VPS (ce soir ou
 demain), un compte UptimeRobot gratuit (5 min), le test final de l'exe, le GO.
@@ -42,6 +46,20 @@ demain), un compte UptimeRobot gratuit (5 min), le test final de l'exe, le GO.
 - [ ] PWA : `manifest.webmanifest`, icônes 192/512 (+maskable), service worker,
       balises head — Lenyay devient installable sur Android (et iOS Safari).
 - [ ] Tests (manifest servi, bannière présente, i18n complète) ; commit.
+
+### J-8 (suite) → J-4 — l'application Android native  *(moi, en parallèle de tout)*
+- [ ] J-8 soir : outillage (JDK + SDK Android portables, sans installation
+      système) + squelette de l'app (Kotlin, WebView + coquille native).
+- [ ] J-7 : APK v1 qui compile — chat/compte/FAQ, icône, retour matériel,
+      liens externes vers le navigateur.
+- [ ] J-6 : **test sur le téléphone de Julien** (installation « sources
+      inconnues », parcours complet). Bouton « Télécharger pour Android »
+      sur /decouvrir.
+- [ ] J-6 → J-4 : tentative contribution — compilation llama.cpp (NDK,
+      arm64), service de premier plan « pendant la charge », worker HTTP.
+- [ ] **J-2 mercredi 5/8, LA PORTE** : le 1,5B répond-il sur le téléphone de
+      Julien en un temps acceptable ? Oui → contribution dans l'APK.
+      Non → APK sans contribution, chantier continué pendant les vacances.
 
 ### J-7 · jeudi 31/7 — domaine  *(Julien le soir, moi ensuite)*
 - [ ] **Julien** : acheter domaine + VPS (Debian 12, 2 Go). Créer les DNS :

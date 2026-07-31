@@ -23,3 +23,9 @@ data/essaim.db*
 dist/
 build/
 *.spec
+
+# Android : artefacts et reglages locaux
+android/local.properties
+android/.gradle/
+android/app/build/
+android/build/
