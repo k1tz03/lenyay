@@ -406,9 +406,10 @@ async function loadAccount(){
   if(!r.ok) return;
   account = await r.json(); account.key = account.account_key;
   paintWallet(); loadThreads();
-  // Application de bureau : la machine se rattache au compte toute seule.
-  if(window.pywebview && account.key){
-    try{ window.pywebview.api.set_account_key(account.key); }catch(e){}
+  // Coquilles (bureau ou téléphone) : la machine se rattache toute seule.
+  const shell = shellApi();
+  if(shell && account.key){
+    try{ shell.setKey(account.key); }catch(e){}
   }
 }
 function paintWallet(){
@@ -853,9 +854,28 @@ $("lang-pick").onchange = e => {
 /* La coquille pywebview injecte window.pywebview : on masque le site, on
    branche l'interrupteur Contribuer sur le worker local. */
 let deskTimer = null;
+/* Une seule abstraction pour les deux coquilles : pywebview (bureau,
+   asynchrone) et lenyayAndroid (téléphone, synchrone). La page ne sait
+   pas sur quoi elle tourne — elle parle au shell. */
+function shellApi(){
+  if(window.pywebview && window.pywebview.api){
+    const a = window.pywebview.api;
+    return {status: () => a.status(), start: () => a.start_contribute(),
+            stop: () => a.stop_contribute(), setKey: k => a.set_account_key(k)};
+  }
+  if(window.lenyayAndroid){
+    const a = window.lenyayAndroid;
+    return {status: async () => JSON.parse(a.status()),
+            start: async () => a.startContribute(),
+            stop: async () => a.stopContribute(),
+            setKey: async k => a.setAccountKey(k)};
+  }
+  return null;
+}
 async function paintContrib(){
+  const shell = shellApi(); if(!shell) return;
   try{
-    const s = await window.pywebview.api.status();
+    const s = await shell.status();
     $("ctoggle").setAttribute("aria-pressed", s.running);
     $("ctoggle").querySelector("span").textContent =
       s.running ? t("contrib.on") : t("contrib.off");
@@ -865,15 +885,15 @@ async function paintContrib(){
   }catch(e){}
 }
 function setupDesktop(){
-  if(!window.pywebview) return;
+  const shell = shellApi(); if(!shell) return;
   document.body.classList.add("desktop");
   $("contrib").hidden = false;
   $("ctoggle").onclick = async () => {
-    const s = await window.pywebview.api.status();
-    if(s.running){ await window.pywebview.api.stop_contribute(); }
+    const s = await shell.status();
+    if(s.running){ await shell.stop(); }
     else{
-      if(account && account.key) await window.pywebview.api.set_account_key(account.key);
-      await window.pywebview.api.start_contribute();
+      if(account && account.key) await shell.setKey(account.key);
+      await shell.start();
     }
     paintContrib();
   };
@@ -881,7 +901,7 @@ function setupDesktop(){
   paintContrib();
 }
 window.addEventListener("pywebviewready", setupDesktop);
-if(window.pywebview) setupDesktop();
+if(window.pywebview || window.lenyayAndroid) setupDesktop();
 
 loadTiers(); loadAccount(); net(); setInterval(net, 15000);
 </script>

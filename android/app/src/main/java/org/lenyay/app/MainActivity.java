@@ -43,6 +43,8 @@ public class MainActivity extends Activity {
         // navigation du site (même mécanisme que la coquille de bureau).
         s.setUserAgentString(s.getUserAgentString() + " LenyayApp/0.9");
         CookieManager.getInstance().setAcceptCookie(true); // la session du compte
+        // Le pont : la page pilote la contribution (window.lenyayAndroid).
+        web.addJavascriptInterface(new LenyayBridge(this), "lenyayAndroid");
 
         final String home = getString(R.string.lenyay_url);
         final String homeHost = Uri.parse(home).getHost();
