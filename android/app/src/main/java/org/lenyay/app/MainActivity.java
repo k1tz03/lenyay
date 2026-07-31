@@ -12,8 +12,10 @@ package org.lenyay.app;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.webkit.CookieManager;
@@ -30,6 +32,15 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        // Android 13+ : sans cette permission, la notification du service de
+        // contribution serait invisible — l'utilisateur doit voir ce qui tourne.
+        if (Build.VERSION.SDK_INT >= 33
+                && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
+                   != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(
+                new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 1);
+        }
 
         web = new WebView(this);
         web.setBackgroundColor(Color.parseColor("#F2F6F3"));

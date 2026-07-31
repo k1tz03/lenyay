@@ -19,6 +19,7 @@ endif()
 # Une seule cible, hermétique : pas de réseau au configure, pas d'OpenMP
 # (les threads de ggml suffisent), pas d'outils annexes.
 set(BUILD_SHARED_LIBS OFF)
+set(LLAMA_BUILD_COMMON ON)   # sinon la cible llama-common n'existe pas
 set(LLAMA_BUILD_TESTS OFF)
 set(LLAMA_BUILD_EXAMPLES OFF)
 set(LLAMA_BUILD_TOOLS OFF)
@@ -35,6 +36,7 @@ target_include_directories(lenyay_llm PRIVATE
         ${LLAMA_CPP_DIR}
         ${LLAMA_CPP_DIR}/common
         ${LLAMA_CPP_DIR}/include
-        ${LLAMA_CPP_DIR}/ggml/include)
+        ${LLAMA_CPP_DIR}/ggml/include
+        ${LLAMA_CPP_DIR}/vendor)   # nlohmann/json embarqué, tiré par chat.h
 
 target_link_libraries(lenyay_llm llama llama-common android log)
