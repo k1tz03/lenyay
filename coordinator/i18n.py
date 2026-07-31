@@ -11,6 +11,22 @@ Volontairement sans bibliothèque : un dict, un pivot, un test.
 LANGS = ["fr", "en", "es", "de", "pt", "it"]
 
 S = {
+    # --- Lancement ---
+    "banner.free": {
+        "fr": "🎉 Lancement : tout est gratuit. Les abonnements viendront dans un second temps.",
+        "en": "🎉 Launch: everything is free. Subscriptions will come later.",
+        "es": "🎉 Lanzamiento: todo es gratis. Las suscripciones llegarán más adelante.",
+        "de": "🎉 Start: alles ist kostenlos. Abos kommen später.",
+        "pt": "🎉 Lançamento: tudo é grátis. As assinaturas chegarão mais tarde.",
+        "it": "🎉 Lancio: tutto è gratuito. Gli abbonamenti arriveranno in seguito."},
+    "banner.install": {
+        "fr": "Sur Android : menu du navigateur → « Ajouter à l'écran d'accueil » pour installer Lenyay.",
+        "en": "On Android: browser menu → \"Add to Home screen\" to install Lenyay.",
+        "es": "En Android: menú del navegador → «Añadir a pantalla de inicio» para instalar Lenyay.",
+        "de": "Auf Android: Browsermenü → „Zum Startbildschirm hinzufügen“, um Lenyay zu installieren.",
+        "pt": "No Android: menu do navegador → «Adicionar ao ecrã principal» para instalar a Lenyay.",
+        "it": "Su Android: menu del browser → «Aggiungi a schermata Home» per installare Lenyay."},
+
     # --- Barre et navigation ---
     "nav.discover": {
         "fr": "Découvrir", "en": "Discover", "es": "Descubrir",

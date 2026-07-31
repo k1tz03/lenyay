@@ -871,6 +871,14 @@ def admin_console():
     return ADMIN_HTML
 
 
+@app.get("/sw.js", include_in_schema=False)
+def service_worker():
+    """Servi à la racine : un service worker sous /static ne pourrait
+    contrôler que /static, pas l'application."""
+    return Response((_STATIC / "sw.js").read_text(encoding="utf-8"),
+                    media_type="application/javascript")
+
+
 @app.get("/dashboard", response_class=HTMLResponse)
 def dashboard():
     return _PAGE

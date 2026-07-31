@@ -18,6 +18,9 @@ LANDING_HTML = """<!doctype html>
 <title>Lenyay — l'IA servie par nos machines</title>
 <meta name="description" content="Pose ta question : elle est traitée par l'ordinateur d'un autre membre. Gratuit, sans datacenter.">
 <meta name="color-scheme" content="light">
+<meta name="theme-color" content="#245247">
+<link rel="manifest" href="/static/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/static/icons/icon-192.png">
 <style>
 @font-face{font-family:"Familjen"; font-style:normal; font-weight:400 700;
   font-display:swap; src:url("/static/fonts/familjen-latin.woff2") format("woff2")}
@@ -118,6 +121,9 @@ body.desktop .topnav, body.desktop .weblink{display:none}
   background:var(--panel); color:var(--soft); padding:.3rem .35rem; cursor:pointer}
 #lang-pick:hover{border-color:var(--verd); color:var(--ink)}
 
+.freebanner{background:linear-gradient(90deg,var(--verd-pale),var(--amber-pale));
+  border-bottom:1px solid var(--line); padding:.4rem 1.1rem; text-align:center;
+  font-size:.84rem; color:var(--verd-deep); font-weight:600}
 .stream{flex:1; overflow-y:auto; padding:1.4rem 1.1rem 1rem; min-height:0}
 .inner{max-width:760px; margin:0 auto; display:flex; flex-direction:column; gap:1.1rem}
 .turn{display:flex; gap:.8rem}
@@ -317,6 +323,9 @@ details.faq p{margin:.45rem 0 .2rem; font-size:.9rem; color:var(--soft)}
       </select>
       <button class="signin" id="signin" data-i18n="nav.signin">Se connecter</button>
     </div>
+
+    <div class="freebanner"><span data-i18n="banner.free">🎉 Lancement : tout est
+      gratuit. Les abonnements viendront dans un second temps.</span></div>
 
     <div class="stream" id="stream">
       <div class="inner" id="turns"></div>
@@ -806,6 +815,12 @@ async function net(){
       {d: fmt(s.devices_seen), c: fmt(s.accepted_rollouts)});
   }catch(e){}
 }
+// L'application est installable (Android, et iOS via Safari) : le service
+// worker à la racine rend le manifeste actif. Jamais bloquant si absent.
+if("serviceWorker" in navigator){
+  navigator.serviceWorker.register("/sw.js").catch(() => {});
+}
+
 // L'accueil s'affiche AVANT tout appel réseau : même hors ligne, le visiteur
 // doit comprendre où il est tombé et comment le réseau fonctionne.
 applyI18n();
