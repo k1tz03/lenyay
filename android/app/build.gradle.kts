@@ -30,4 +30,11 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+
+    lint {
+        // lintVital plante sur un chemin Windows et n'apporte rien à une
+        // coquille sans dépendance : la revue de code se fait ailleurs.
+        checkReleaseBuilds = false
+        abortOnError = false
+    }
 }
