@@ -189,6 +189,14 @@ h2{font-size:clamp(1.7rem,3.8vw,2.5rem); line-height:1.12; letter-spacing:-.028e
 .panel.soon li::before{content:"→"; color:var(--amber)}
 
 /* ---- Participer ---- */
+.downloads{display:grid; gap:1rem; grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+  margin-top:1.8rem; max-width:700px}
+.dl{display:block; text-decoration:none; background:var(--panel);
+  border:1.5px solid var(--verd); border-radius:14px; padding:1.1rem 1.3rem;
+  box-shadow:var(--lift); transition:transform .15s}
+.dl:hover{transform:translateY(-2px); border-color:var(--verd-deep)}
+.dl b{display:block; font-size:1.05rem; color:var(--verd-deep)}
+.dl span{font-size:.85rem; color:var(--soft)}
 .os{display:flex; gap:1.1rem; margin:1.8rem 0 .7rem; font-size:.92rem}
 .os button{background:none; border:none; padding:0 0 3px; cursor:pointer; font:inherit;
   color:var(--soft); border-bottom:2px solid transparent}
@@ -577,6 +585,19 @@ footer .right{margin-left:auto}
     <h2>Une commande, et ta machine rejoint le réseau.</h2>
     <p class="note">Rien ne s'installe hors de son dossier, aucun mot de passe système
       n'est demandé, et désinstaller revient à supprimer un dossier.</p>
+
+    <div class="downloads">
+      <a class="dl" href="https://github.com/k1tz03/lenyay/releases/latest/download/Lenyay-Setup.exe">
+        <b>⬇ Télécharger pour Windows</b>
+        <span>Lenyay-Setup.exe — installation en un double-clic</span>
+      </a>
+      <a class="dl" href="https://github.com/k1tz03/lenyay/releases/latest/download/Lenyay.apk">
+        <b>⬇ Télécharger pour Android</b>
+        <span>APK — autoriser « sources inconnues » à l'installation</span>
+      </a>
+    </div>
+    <p class="note" style="margin-top:1rem">Ou en ligne de commande, pour les
+      habitués du terminal :</p>
 
     <div class="os" role="tablist">
       <button role="tab" aria-selected="true" data-os="win">Windows</button>
